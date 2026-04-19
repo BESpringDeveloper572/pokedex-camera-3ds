@@ -13,19 +13,33 @@ set(SOURCES source/main.cpp
         source/input_handler.h
         source/input_handler.cpp
         source/app_state.h
-        source/app_state.cpp)
+        source/app_state.cpp
+        source/TextToSpeech.cpp
+        source/TextToSpeech.h)
 
 include_directories($ENV{DEVKITARM}/include/)
 include_directories($ENV{DEVKITARM}/arm-none-eabi/include)
 include_directories($ENV{DEVKITPRO}/libctru/include)
 include_directories($ENV{DEVKITARM}/arm-none-eabi/include/c++/7.1.0)
+include_directories($ENV{DEVKITPRO}/portlibs/3ds/include)
 
 # Link against citro2d for graphics
 link_directories($ENV{DEVKITPRO}/libctru/lib)
+link_directories($ENV{DEVKITPRO}/portlibs/3ds/lib)
+
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE citro2d citro3d ctru m)
+target_link_libraries(${PROJECT_NAME} PRIVATE
+        citro2d
+        citro3d
+        ctru
+        m
+        flite_cmu_us_kal
+        flite_cmulex
+        flite_usenglish
+        flite)
+
 
 if(COMMAND ctr_create_3dsx)
     ctr_create_3dsx(${PROJECT_NAME}

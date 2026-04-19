@@ -1,8 +1,4 @@
 #include "main.h"
-#include "display_manager.h"
-#include "input_handler.h"
-#include "app_state.h"
-#include "pokemon_data.h"
 
 using std::string;
 using enum AppState;
@@ -14,6 +10,9 @@ int main(int argc, char *argv[]) {
 
 	InputHandler input;
 	ApplicationState app_state;
+
+	TextToSpeech textToSpeech;
+	ndspInit();
 
 	SwkbdState swkbd;
 	string keyboardInput;
@@ -146,6 +145,8 @@ int main(int argc, char *argv[]) {
 
 				case DETAIL_VIEW:
 					display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
+					textToSpeech.sayPokemonInformation(*app_state.getSelectedPokemon());
+					// textToSpeech.processText(*app_state.getSelectedPokemon());
 					break;
 
 				case SEARCH_MODE:
@@ -168,5 +169,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	display.exit();
+	ndspExit();
 	return 0;
 }

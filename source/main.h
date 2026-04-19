@@ -10,5 +10,10 @@
 #include <cstring>
 #include <string>
 #include <3ds.h>
+#include "display_manager.h"
+#include "input_handler.h"
+#include "app_state.h"
+#include "pokemon_data.h"
+#include "TextToSpeech.h"
 
 #endif //INC_3DS_APP_MAIN_H

@@ -1,5 +1,6 @@
 #include "display_manager.h"
 #include <cstring>
+#include <utility>
 
 // Console objects for dual-screen support
 PrintConsole topScreen, bottomScreen;
@@ -161,15 +162,11 @@ void DisplayManager::drawPokemonDetailsTop(const Pokemon& pokemon, AppState stat
     // Types with color coding
     printf("\n  Types:\n");
     for (int i = 0; i < pokemon.type_count; i++) {
-        const char* type_names[] = {
-            "Normal", "Fire", "Water", "Grass", "Electric", "Ice", "Fighting",
-            "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost",
-            "Dragon", "Dark", "Steel", "Fairy"
-        };
+
         printf("    %s%s %s%s\n",
             getTypeColor(pokemon.types[i]),
             getTypeEmoji(pokemon.types[i]),
-            type_names[static_cast<int>(pokemon.types[i])],
+            type_names[static_cast<int>(std::to_underlying(pokemon.types[i]))],
             COLOR_RESET);
     }
 

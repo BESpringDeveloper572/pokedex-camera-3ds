@@ -8,6 +8,11 @@
 constexpr uint16_t MAX_NAME_LENGTH = 20;
 constexpr uint16_t MAX_DESC_LENGTH = 100;
 constexpr uint8_t MAX_TYPES = 2;
+inline constexpr const char* type_names[] = {
+    "Normal", "Fire", "Water", "Grass", "Electric", "Ice", "Fighting",
+    "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost",
+    "Dragon", "Dark", "Steel", "Fairy"
+};
 
 // Pokemon type enumeration (18 types total)
 enum class PokemonType : uint8_t {
@@ -30,6 +35,7 @@ enum class PokemonType : uint8_t {
     STEEL = 16,
     FAIRY = 17
 };
+
 
 // Compact Pokemon data structure optimized for 3DS memory constraints
 struct Pokemon {
