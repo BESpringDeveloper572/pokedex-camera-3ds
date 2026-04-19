@@ -91,8 +91,19 @@ int ApplicationState::getPokemonCount() const {
 }
 
 const Pokemon* ApplicationState::getSelectedPokemon() const {
+    return getPokemon(selected_index);
+}
+
+const Pokemon* ApplicationState::getFilteredSelectedPokemon() const {
+    if (selected_index >= getFilteredCount()) {
+        return nullptr;
+    }
+    return getPokemon(filtered_indices[selected_index]);
+}
+
+const Pokemon* ApplicationState::getPokemon(int index) const {
     if (pokemon_list && selected_index >= 0 && selected_index < pokemon_count) {
-        return &pokemon_list[selected_index];
+        return &pokemon_list[index];
     }
     return nullptr;
 }

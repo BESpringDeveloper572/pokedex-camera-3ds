@@ -38,6 +38,8 @@ public:
     int getPokemonCount() const;
     const Pokemon* getSelectedPokemon() const;
 
+    const Pokemon *getFilteredSelectedPokemon() const;
+
     // Search filtering
     void performSearch();
     int getFilteredCount() const;
@@ -56,6 +58,7 @@ private:
     // Filtered results for search
     int filtered_indices[151];  // Max Gen 1 Pokemon
     int filtered_count;
+    const Pokemon* getPokemon(int index) const;
 };
 
 #endif // APP_STATE_H

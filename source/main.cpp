@@ -4,14 +4,20 @@
 #include "app_state.h"
 #include "pokemon_data.h"
 
-int main(int argc, char* argv[])
-{
+using std::string;
+using enum AppState;
+
+int main(int argc, char *argv[]) {
 	// Initialize subsystems
 	DisplayManager display;
 	display.init();
 
 	InputHandler input;
 	ApplicationState app_state;
+
+	SwkbdState swkbd;
+	string keyboardInput;
+	keyboardInput.reserve(64);
 
 	// Create test Pokemon data
 	Pokemon test_pokemon[] = {
@@ -49,56 +55,75 @@ int main(int argc, char* argv[])
 
 	// Initialize app state with Pokemon list
 	app_state.setPokemonList(test_pokemon, test_pokemon_count);
-	app_state.setState(AppState::LIST_VIEW);
+	app_state.setState(LIST_VIEW);
+
+	bool startup = true;
 
 	// Main application loop
-	while (aptMainLoop())
-	{
+	while (aptMainLoop()) {
 		// Update input state
 		input.update();
 
+		AppState previous_state;
+		if (startup) {
+			previous_state = DETAIL_VIEW;
+			startup = false;
+		} else {
+			previous_state = app_state.getCurrentState();
+		}
+
 		// Handle input based on current state
 		if (input.isUpPressed()) {
-			if (app_state.getCurrentState() == AppState::LIST_VIEW) {
+			if (app_state.getCurrentState() == LIST_VIEW) {
 				app_state.moveSelection(-1, app_state.getPokemonCount());
-			} else if (app_state.getCurrentState() == AppState::SEARCH_MODE) {
+				display.clearTopScreen();
+				display.clearBottomScreen();
+				display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
+				display.drawPokemonListBottom(app_state.getPokemonList(), app_state.getPokemonCount(),
+											  app_state.getSelectedIndex());
+			} else if (app_state.getCurrentState() == SEARCH_MODE) {
 				app_state.moveSelection(-1, app_state.getFilteredCount());
 			}
 		}
 
 		if (input.isDownPressed()) {
-			if (app_state.getCurrentState() == AppState::LIST_VIEW) {
+			if (app_state.getCurrentState() == LIST_VIEW) {
 				app_state.moveSelection(1, app_state.getPokemonCount());
-			} else if (app_state.getCurrentState() == AppState::SEARCH_MODE) {
+				display.clearTopScreen();
+				display.clearBottomScreen();
+				display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
+				display.drawPokemonListBottom(app_state.getPokemonList(), app_state.getPokemonCount(),
+											  app_state.getSelectedIndex());
+			} else if (app_state.getCurrentState() == SEARCH_MODE) {
 				app_state.moveSelection(1, app_state.getFilteredCount());
 			}
 		}
 
 		// A button: select and go to detail view
 		if (input.isAPressed()) {
-			if (app_state.getCurrentState() == AppState::LIST_VIEW) {
-				app_state.setState(AppState::DETAIL_VIEW);
-			} else if (app_state.getCurrentState() == AppState::SEARCH_MODE) {
-				app_state.setState(AppState::DETAIL_VIEW);
+			if (app_state.getCurrentState() == LIST_VIEW) {
+				app_state.setState(DETAIL_VIEW);
+			} else if (app_state.getCurrentState() == SEARCH_MODE) {
+				app_state.setState(DETAIL_VIEW);
 			}
 		}
 
 		// B button: back to list view
 		if (input.isBPressed()) {
-			if (app_state.getCurrentState() == AppState::DETAIL_VIEW) {
-				app_state.setState(AppState::LIST_VIEW);
-			} else if (app_state.getCurrentState() == AppState::SEARCH_MODE) {
-				app_state.setState(AppState::LIST_VIEW);
+			if (app_state.getCurrentState() == DETAIL_VIEW) {
+				app_state.setState(LIST_VIEW);
+			} else if (app_state.getCurrentState() == SEARCH_MODE) {
+				app_state.setState(LIST_VIEW);
 			}
 		}
 
 		// X button: toggle search mode
 		if (input.isKeyDown(KEY_X)) {
-			if (app_state.getCurrentState() == AppState::LIST_VIEW) {
-				app_state.setState(AppState::SEARCH_MODE);
+			if (app_state.getCurrentState() == LIST_VIEW) {
+				app_state.setState(SEARCH_MODE);
 				app_state.clearSearchText();
-			} else if (app_state.getCurrentState() == AppState::SEARCH_MODE) {
-				app_state.setState(AppState::LIST_VIEW);
+			} else if (app_state.getCurrentState() == SEARCH_MODE) {
+				app_state.setState(LIST_VIEW);
 			}
 		}
 
@@ -106,26 +131,36 @@ int main(int argc, char* argv[])
 		if (input.isStartPressed())
 			break;
 
-		// Clear screens
-		display.clearTopScreen();
-		display.clearBottomScreen();
+		if (previous_state != app_state.getCurrentState()) {
+			// Clear screens
+			display.clearTopScreen();
+			display.clearBottomScreen();
 
-		// Render based on current state
-		switch (app_state.getCurrentState()) {
-			case AppState::LIST_VIEW:
-				display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
-				display.drawPokemonListBottom(app_state.getPokemonList(), app_state.getPokemonCount(), app_state.getSelectedIndex());
-				break;
+			// Render based on current state
+			switch (app_state.getCurrentState()) {
+				case LIST_VIEW:
+					display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
+					display.drawPokemonListBottom(app_state.getPokemonList(), app_state.getPokemonCount(),
+					                              app_state.getSelectedIndex());
+					break;
 
-			case AppState::DETAIL_VIEW:
-				display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
-				display.drawPokemonListBottom(app_state.getPokemonList(), app_state.getPokemonCount(), app_state.getSelectedIndex());
-				break;
+				case DETAIL_VIEW:
+					display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
+					break;
 
-			case AppState::SEARCH_MODE:
-				display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
-				display.drawSearchModeBottom(&app_state);
-				break;
+				case SEARCH_MODE:
+					// Initialize keyboard with default type (QWERTY)
+					swkbdInit(&swkbd, SWKBD_TYPE_NORMAL, 2, -1);
+					swkbdSetHintText(&swkbd, "Enter your Pokemon name");
+
+					// Open the keyboard and store result in mybuf
+					swkbdInputText(&swkbd, keyboardInput.data(), 64);
+					app_state.setSearchText(keyboardInput.data());
+					app_state.performSearch();
+					display.drawPokemonDetailsTop(*app_state.getFilteredSelectedPokemon(), app_state.getCurrentState());
+					display.drawSearchModeBottom(&app_state);
+					break;
+			}
 		}
 
 		// Swap buffers and wait for VBlank

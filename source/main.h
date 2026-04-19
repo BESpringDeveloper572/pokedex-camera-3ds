@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <3ds.h>
 
 #endif //INC_3DS_APP_MAIN_H
