@@ -1,5 +1,5 @@
 #include "main.h"
-#include "graphics_display.h"
+#include "display_manager.h"
 #include "input_handler.h"
 #include "app_state.h"
 #include "pokemon_data.h"
@@ -7,10 +7,8 @@
 int main(int argc, char* argv[])
 {
 	// Initialize subsystems
-	GraphicsDisplay display;
-	if (!display.init()) {
-		return -1;
-	}
+	DisplayManager display;
+	display.init();
 
 	InputHandler input;
 	ApplicationState app_state;
@@ -108,8 +106,9 @@ int main(int argc, char* argv[])
 		if (input.isStartPressed())
 			break;
 
-		// Begin graphics frame
-		display.beginFrame();
+		// Clear screens
+		display.clearTopScreen();
+		display.clearBottomScreen();
 
 		// Render based on current state
 		switch (app_state.getCurrentState()) {
@@ -129,10 +128,10 @@ int main(int argc, char* argv[])
 				break;
 		}
 
-		// End frame and swap buffers
-		display.endFrame();
+		// Swap buffers and wait for VBlank
+		display.swapBuffers();
 	}
 
-	display.shutdown();
+	display.exit();
 	return 0;
 }

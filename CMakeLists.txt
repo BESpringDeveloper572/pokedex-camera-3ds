@@ -13,13 +13,7 @@ set(SOURCES source/main.cpp
         source/input_handler.h
         source/input_handler.cpp
         source/app_state.h
-        source/app_state.cpp
-        source/pokemon_api.h
-        source/pokemon_api.cpp
-        source/pokemon_cache.h
-        source/pokemon_cache.cpp
-        source/graphics_display.h
-        source/graphics_display.cpp)
+        source/app_state.cpp)
 
 include_directories($ENV{DEVKITARM}/include/)
 include_directories($ENV{DEVKITARM}/arm-none-eabi/include)
