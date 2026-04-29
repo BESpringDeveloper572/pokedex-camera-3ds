@@ -6,6 +6,9 @@
 #include "pokemon_data.h"
 #include "app_state.h"
 
+// Console objects for dual-screen support
+extern PrintConsole topScreen, bottomScreen;
+
 // ANSI color codes for 3DS console
 #define COLOR_RED     "\x1b[31m"
 #define COLOR_GREEN   "\x1b[32m"

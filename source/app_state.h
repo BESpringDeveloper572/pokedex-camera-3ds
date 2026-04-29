@@ -3,12 +3,15 @@
 
 #include "pokemon_data.h"
 #include <cstring>
+#include <vector>
 
 // Application states
 enum class AppState {
     LIST_VIEW,      // Browsable Pokemon list
     DETAIL_VIEW,    // Selected Pokemon details
-    SEARCH_MODE     // Search for Pokemon by name or ID
+    SEARCH_MODE,    // Search for Pokemon by name or ID
+    VIEWFINDER,     // Camera preview for capture
+    CLASSIFYING     // Identifying a Pokemon via camera
 };
 
 class ApplicationState {
@@ -34,7 +37,8 @@ public:
 
     // Pokemon list management
     void setPokemonList(const Pokemon* list, int count);
-    const Pokemon* getPokemonList() const;
+    void addPokemon(const Pokemon& pokemon);
+    const std::vector<Pokemon>& getPokemonList() const;
     int getPokemonCount() const;
     const Pokemon* getSelectedPokemon() const;
 
@@ -49,8 +53,7 @@ private:
     AppState current_state;
     int selected_index;
 
-    const Pokemon* pokemon_list;
-    int pokemon_count;
+    std::vector<Pokemon> pokemon_list;
 
     char search_text[MAX_NAME_LENGTH];
     int search_text_length;

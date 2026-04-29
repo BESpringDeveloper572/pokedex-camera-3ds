@@ -15,7 +15,10 @@ set(SOURCES source/main.cpp
         source/app_state.h
         source/app_state.cpp
         source/TextToSpeech.cpp
-        source/TextToSpeech.h)
+        source/TextToSpeech.h
+        source/PokemonClassifierClient.cpp
+        source/secrets.h
+)
 
 include_directories($ENV{DEVKITARM}/include/)
 include_directories($ENV{DEVKITARM}/arm-none-eabi/include)

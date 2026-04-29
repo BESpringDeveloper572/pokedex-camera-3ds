@@ -32,6 +32,7 @@ void DisplayManager::clearBottomScreen() {
 }
 
 void DisplayManager::swapBuffers() {
+    gfxFlushBuffers();
     gspWaitForVBlank();
     gfxSwapBuffers();
 }

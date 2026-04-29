@@ -3,8 +3,6 @@
 ApplicationState::ApplicationState()
     : current_state(AppState::LIST_VIEW),
       selected_index(0),
-      pokemon_list(nullptr),
-      pokemon_count(0),
       search_text_length(0),
       filtered_count(0) {
     search_text[0] = '\0';
@@ -28,7 +26,7 @@ int ApplicationState::getSelectedIndex() const {
 }
 
 void ApplicationState::setSelectedIndex(int index) {
-    if (index >= 0 && index < pokemon_count) {
+    if (index >= 0 && index < (int)pokemon_list.size()) {
         selected_index = index;
     }
 }
@@ -77,17 +75,24 @@ void ApplicationState::removeCharFromSearch() {
 }
 
 void ApplicationState::setPokemonList(const Pokemon* list, int count) {
-    pokemon_list = list;
-    pokemon_count = count;
+    pokemon_list.clear();
+    for(int i = 0; i < count; i++) {
+        pokemon_list.push_back(list[i]);
+    }
     selected_index = 0;
 }
 
-const Pokemon* ApplicationState::getPokemonList() const {
+void ApplicationState::addPokemon(const Pokemon& pokemon) {
+    pokemon_list.push_back(pokemon);
+    selected_index = (int)pokemon_list.size() - 1;
+}
+
+const std::vector<Pokemon>& ApplicationState::getPokemonList() const {
     return pokemon_list;
 }
 
 int ApplicationState::getPokemonCount() const {
-    return pokemon_count;
+    return (int)pokemon_list.size();
 }
 
 const Pokemon* ApplicationState::getSelectedPokemon() const {
@@ -102,7 +107,7 @@ const Pokemon* ApplicationState::getFilteredSelectedPokemon() const {
 }
 
 const Pokemon* ApplicationState::getPokemon(int index) const {
-    if (pokemon_list && selected_index >= 0 && selected_index < pokemon_count) {
+    if (index >= 0 && index < (int)pokemon_list.size()) {
         return &pokemon_list[index];
     }
     return nullptr;
@@ -110,17 +115,18 @@ const Pokemon* ApplicationState::getPokemon(int index) const {
 
 void ApplicationState::performSearch() {
     filtered_count = 0;
+    int count = (int)pokemon_list.size();
 
     if (search_text_length == 0) {
         // No search, show all Pokemon
-        for (int i = 0; i < pokemon_count; i++) {
+        for (int i = 0; i < count; i++) {
             filtered_indices[filtered_count++] = i;
         }
         return;
     }
 
     // Search by name (case-insensitive partial match)
-    for (int i = 0; i < pokemon_count; i++) {
+    for (int i = 0; i < count; i++) {
         const char* name = pokemon_list[i].name;
 
         // Simple case-insensitive partial match
@@ -159,11 +165,8 @@ int ApplicationState::getFilteredCount() const {
 }
 
 const Pokemon* ApplicationState::getFilteredPokemon(int index) const {
-    if (index >= 0 && index < filtered_count && pokemon_list) {
+    if (index >= 0 && index < filtered_count) {
         return &pokemon_list[filtered_indices[index]];
     }
     return nullptr;
 }
-
-
-
