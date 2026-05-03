@@ -6,18 +6,12 @@
 PrintConsole topScreen, bottomScreen;
 
 DisplayManager::DisplayManager() {
-}
-
-DisplayManager::~DisplayManager() {
-}
-
-void DisplayManager::init() {
     gfxInitDefault();
     consoleInit(GFX_TOP, &topScreen);
     consoleInit(GFX_BOTTOM, &bottomScreen);
 }
 
-void DisplayManager::exit() {
+DisplayManager::~DisplayManager() {
     gfxExit();
 }
 

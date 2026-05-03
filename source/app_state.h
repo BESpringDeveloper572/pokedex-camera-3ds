@@ -10,8 +10,8 @@ enum class AppState {
     LIST_VIEW,      // Browsable Pokemon list
     DETAIL_VIEW,    // Selected Pokemon details
     SEARCH_MODE,    // Search for Pokemon by name or ID
-    VIEWFINDER,     // Camera preview for capture
-    CLASSIFYING     // Identifying a Pokemon via camera
+    CLASSIFYING,
+    ERROR
 };
 
 class ApplicationState {

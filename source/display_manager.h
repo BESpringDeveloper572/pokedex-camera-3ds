@@ -34,12 +34,15 @@ public:
     static constexpr int BOTTOM_WIDTH = 320;
     static constexpr int BOTTOM_HEIGHT = 240;
 
-    DisplayManager();
-    ~DisplayManager();
+    DisplayManager(const DisplayManager&) = delete;
+    DisplayManager& operator=(const DisplayManager&) = delete;
 
-    // Initialization
-    void init();
-    void exit();
+    static DisplayManager& getInstance() {
+        static DisplayManager instance;
+        return instance;
+    }
+
+    ~DisplayManager();
 
     // Screen rendering
     void clearTopScreen();
@@ -52,6 +55,7 @@ public:
     void drawSearchModeBottom(const ApplicationState* app_state);
 
 private:
+    DisplayManager();
     // Helper functions for drawing
     void drawText(gfxScreen_t screen, int x, int y, const char* text);
     void drawHorizontalLine(gfxScreen_t screen, int y, char style);

@@ -2,7 +2,7 @@
 
 #include <malloc.h>
 
-#include "PokemonClassifierClient.h"
+#include "pokemon_classifier_client.h"
 #include "secrets.h"
 
 using std::string;
@@ -12,9 +12,9 @@ constexpr size_t SOC_ALIGN = 0x1000;
 constexpr size_t SOC_BUFFERSIZE = 0x100000;
 
 int main(int argc, char *argv[]) {
-	// Initialize subsystems
-	DisplayManager display;
-	display.init();
+	auto &display = DisplayManager::getInstance();
+	auto &pokemonApi = PokemonApi::getInstance();
+	auto &classifier = PokemonClassifierClient::getInstance();
 
 	InputHandler input;
 	ApplicationState app_state;
@@ -22,36 +22,11 @@ int main(int argc, char *argv[]) {
 	TextToSpeech textToSpeech;
 	ndspInit();
 
-	u32 *soc_buffer = nullptr;
-
-	soc_buffer = static_cast<u32*>(std::aligned_alloc(SOC_ALIGN, SOC_BUFFERSIZE));
-	if(soc_buffer) {
-		Result soc_ret = socInit(soc_buffer, SOC_BUFFERSIZE);
-		if (R_FAILED(soc_ret)) {
-			printf(COLOR_RED "Failed to initialize networking (SOC)! 0x%08lX\n" COLOR_RESET, soc_ret);
-		}
-	} else {
-		printf(COLOR_RED "Failed to allocate SOC buffer!\n" COLOR_RESET);
-	}
-
-	char macStr[18];
-
-	// Use snprintf to format each byte of the array into the string buffer
-	snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
-			 OS_SharedConfig->wifi_macaddr[0],
-			 OS_SharedConfig->wifi_macaddr[1],
-			 OS_SharedConfig->wifi_macaddr[2],
-			 OS_SharedConfig->wifi_macaddr[3],
-			 OS_SharedConfig->wifi_macaddr[4],
-			 OS_SharedConfig->wifi_macaddr[5]);
-	PokemonClassifierClient classifier(API_BASE_URL, API_KEY, macStr);
-	if (!classifier.init()) {
-		printf(COLOR_RED "Failed to initialize camera/network services!\n" COLOR_RESET);
-	}
-
 	SwkbdState swkbd;
 	string keyboardInput;
 	keyboardInput.reserve(64);
+
+	Pokemon detail;
 
 	// Create test Pokemon data
 	Pokemon test_pokemon[] = {
@@ -114,7 +89,7 @@ int main(int argc, char *argv[]) {
 				display.clearBottomScreen();
 				display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
 				display.drawPokemonListBottom(app_state.getPokemonList().data(), app_state.getPokemonCount(),
-											  app_state.getSelectedIndex());
+				                              app_state.getSelectedIndex());
 			} else if (app_state.getCurrentState() == SEARCH_MODE) {
 				app_state.moveSelection(-1, app_state.getFilteredCount());
 			}
@@ -127,7 +102,7 @@ int main(int argc, char *argv[]) {
 				display.clearBottomScreen();
 				display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
 				display.drawPokemonListBottom(app_state.getPokemonList().data(), app_state.getPokemonCount(),
-											  app_state.getSelectedIndex());
+				                              app_state.getSelectedIndex());
 			} else if (app_state.getCurrentState() == SEARCH_MODE) {
 				app_state.moveSelection(1, app_state.getFilteredCount());
 			}
@@ -148,6 +123,8 @@ int main(int argc, char *argv[]) {
 				app_state.setState(LIST_VIEW);
 			} else if (app_state.getCurrentState() == SEARCH_MODE) {
 				app_state.setState(LIST_VIEW);
+			} else if (app_state.getCurrentState() == ERROR) {
+				app_state.setState(LIST_VIEW);
 			}
 		}
 
@@ -162,31 +139,18 @@ int main(int argc, char *argv[]) {
 		}
 
 		// Y button: classification mode
-		if (input.isKeyDown(KEY_Y)) {
-			if (app_state.getCurrentState() == LIST_VIEW || app_state.getCurrentState() == DETAIL_VIEW) {
-				classifier.startViewfinder();
-				app_state.setState(VIEWFINDER);
-			}
-		}
-
-		// A button in Viewfinder: Capture
-		if (input.isKeyDown(KEY_A) && app_state.getCurrentState() == VIEWFINDER) {
+		if (input.isKeyDown(KEY_Y) && (app_state.getCurrentState() == LIST_VIEW || app_state.getCurrentState() ==
+		                               DETAIL_VIEW)) {
 			app_state.setState(CLASSIFYING);
-		}
-
-		// B button in Viewfinder: Cancel
-		if (input.isKeyDown(KEY_B) && app_state.getCurrentState() == VIEWFINDER) {
-			classifier.stopViewfinder();
-			app_state.setState(LIST_VIEW);
 		}
 
 		// START button: exit application
 		if (input.isStartPressed())
 			break;
 
-		if (previous_state != app_state.getCurrentState() || app_state.getCurrentState() == CLASSIFYING || app_state.getCurrentState() == VIEWFINDER) {
+		if (previous_state != app_state.getCurrentState()) {
 			// Clear screens (only if state changed, or special handling for viewfinder)
-			if (previous_state != app_state.getCurrentState() && app_state.getCurrentState() != VIEWFINDER) {
+			if (previous_state != app_state.getCurrentState()) {
 				display.clearTopScreen();
 				display.clearBottomScreen();
 			}
@@ -198,12 +162,17 @@ int main(int argc, char *argv[]) {
 					display.drawPokemonListBottom(app_state.getPokemonList().data(), app_state.getPokemonCount(),
 					                              app_state.getSelectedIndex());
 					break;
-
-				case DETAIL_VIEW:
-					display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
-					textToSpeech.sayPokemonInformation(*app_state.getSelectedPokemon());
+				case DETAIL_VIEW: {
+					if (auto pokemon = pokemonApi.getPokemon(app_state.getSelectedPokemon()->name);
+						pokemon == nullptr) {
+						app_state.setState(ERROR);
+					} else {
+						detail = *pokemon;
+						display.drawPokemonDetailsTop(detail, app_state.getCurrentState());
+						textToSpeech.sayPokemonInformation(detail);
+					}
 					break;
-
+				}
 				case SEARCH_MODE:
 					// Initialize keyboard with default type (QWERTY)
 					swkbdInit(&swkbd, SWKBD_TYPE_NORMAL, 2, -1);
@@ -216,47 +185,18 @@ int main(int argc, char *argv[]) {
 					display.drawPokemonDetailsTop(*app_state.getFilteredSelectedPokemon(), app_state.getCurrentState());
 					display.drawSearchModeBottom(&app_state);
 					break;
-
-				case VIEWFINDER:
-					classifier.renderViewfinder();
-					
-					// Instruction on bottom screen (only draw once on state change)
-					if (previous_state != VIEWFINDER) {
-						consoleSelect(&bottomScreen);
-						printf("\x1b[2J\x1b[10;5H" COLOR_BRIGHT_WHITE "Point at a Pokemon and press (A)" COLOR_RESET);
-						printf("\x1b[12;10H" COLOR_YELLOW "Press (B) to Cancel" COLOR_RESET);
-					}
-					break;
-
 				case CLASSIFYING:
-					display.clearTopScreen();
-					display.clearBottomScreen();
-					printf("\x1b[10;10H" COLOR_YELLOW "Classifying Pokemon..." COLOR_RESET);
-					display.swapBuffers(); // Show the message
-
-					Pokemon result;
-					if (classifier.captureCurrentFrame(result)) {
-						classifier.stopViewfinder();
-						app_state.addPokemon(result);
-						app_state.setState(DETAIL_VIEW);
-					} else {
-						printf("\x1b[12;10H" COLOR_RED "Classification Failed!" COLOR_RESET);
-						display.swapBuffers();
-						svcSleepThread(2000000000ULL); // Wait 2 seconds
-						app_state.setState(VIEWFINDER); // Go back to viewfinder
-					}
+					classifier.identifyPokemon();
+					break;
+				case ERROR:
+					printf(COLOR_RED "ERROR PAGE!\n" COLOR_RESET);
 					break;
 			}
 		}
-
 		// Swap buffers and wait for VBlank
 		display.swapBuffers();
 	}
 
-	display.exit();
-	classifier.exit();
-	socExit();
-	if (soc_buffer) free(soc_buffer);
 	ndspExit();
 	return 0;
 }

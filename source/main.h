@@ -14,6 +14,6 @@
 #include "input_handler.h"
 #include "app_state.h"
 #include "pokemon_data.h"
-#include "TextToSpeech.h"
+#include "text_to_speech.h"
 
 #endif //INC_3DS_APP_MAIN_H
