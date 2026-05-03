@@ -5,7 +5,7 @@
 #ifndef INC_3DS_APP_POKEMON_API_H
 #define INC_3DS_APP_POKEMON_API_H
 
-#include <3ds.h>
+
 #include <string>
 #include <bits/unique_ptr.h>
 
@@ -33,7 +33,7 @@ private:
     std::string baseUrl;
     std::string apiKey;
 
-    // JSON parser using jsmn
+    // JSON parser using libjson-c
     bool parseApiResponse(const std::string& json, Pokemon& outResult);
 };
 

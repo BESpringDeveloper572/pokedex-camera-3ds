@@ -8,9 +8,12 @@
 
 TextToSpeech::TextToSpeech() {
     voice = register_cmu_us_kal(nullptr);
+    ndspInit();
 }
 
-TextToSpeech::~TextToSpeech() = default;
+TextToSpeech::~TextToSpeech() {
+    ndspExit();
+}
 
 void TextToSpeech::sayPokemonInformation(const Pokemon &pokemon) {
     processText(pokemon.name);

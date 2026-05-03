@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <array>
+#include <cstring>
 
 // Maximum string lengths for compact storage on 3DS
 constexpr uint16_t MAX_NAME_LENGTH = 20;
@@ -45,6 +46,9 @@ struct Pokemon {
     uint8_t type_count;                             // 1 byte (1 or 2 types)
     char description[MAX_DESC_LENGTH];              // 100 bytes
     // Total: ~125 bytes per Pokemon
+    bool operator==(const Pokemon & other) const {
+        return strcmp(name, other.name) == 0;
+    }
 };
 
 #endif // POKEMON_DATA_H

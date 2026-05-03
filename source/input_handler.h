@@ -14,7 +14,14 @@ struct InputState {
 
 class InputHandler {
 public:
-    InputHandler();
+    InputHandler(const InputState & input) = delete;
+    InputHandler& operator=(const InputHandler&) = delete;
+
+    static InputHandler& getInstance() {
+        static InputHandler instance;
+        return instance;
+    }
+
     ~InputHandler();
 
     // Update input state
@@ -41,6 +48,8 @@ public:
     bool isBPressed() const;
 
 private:
+    InputHandler();
+    
     InputState current_state;
 };
 

@@ -2,7 +2,7 @@
 #define APP_STATE_H
 
 #include "pokemon_data.h"
-#include <cstring>
+
 #include <vector>
 
 // Application states
@@ -11,12 +11,20 @@ enum class AppState {
     DETAIL_VIEW,    // Selected Pokemon details
     SEARCH_MODE,    // Search for Pokemon by name or ID
     CLASSIFYING,
+    VIEWFINDER,
     ERROR
 };
 
 class ApplicationState {
 public:
-    ApplicationState();
+    ApplicationState(const AppState& state) = delete;
+    ApplicationState& operator=(const AppState& state) = delete;
+
+    static ApplicationState& getInstance() {
+        static ApplicationState instance;
+        return instance;
+    }
+
     ~ApplicationState();
 
     // State management
@@ -50,6 +58,8 @@ public:
     const Pokemon* getFilteredPokemon(int index) const;
 
 private:
+    ApplicationState();
+
     AppState current_state;
     int selected_index;
 

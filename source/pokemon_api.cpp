@@ -3,222 +3,172 @@
 //
 
 #include "pokemon_api.h"
+
 #include <memory>
 #include <cstring>
 #include <cstdlib>
 #include <format>
-#include <vector>
+#include <malloc.h>
+#include <stdexcept>
+#include <3ds.h>
+
+#include "json-c/json.h"
+#include <curl/curl.h>
 
 #include "display_manager.h"
 
-extern "C" {
-    #include "jsmn.h"
+static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
 }
+
+static u32* soc_buffer = nullptr;
+constexpr size_t SOC_ALIGN = 0x1000;
+constexpr size_t SOC_BUFFERSIZE = 0x100000;
 
 PokemonApi::PokemonApi(const std::string& baseUrl, const std::string& apiKey)
     : baseUrl(baseUrl), apiKey(apiKey) {
-    Result ret = httpcInit(0x400000); // 4MB buffer
-    if (R_FAILED(ret)) throw std::runtime_error("Failed to initialize");
+    
+    soc_buffer = (u32*)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
+    if (!soc_buffer) throw std::runtime_error("Failed to allocate SOC buffer");
+
+    Result ret = socInit(soc_buffer, SOC_BUFFERSIZE);
+    if (R_FAILED(ret)) {
+        free(soc_buffer);
+        throw std::runtime_error("socInit failed");
+    }
+
+    curl_global_init(CURL_GLOBAL_ALL);
 }
 
 PokemonApi::~PokemonApi() {
-    httpcExit();
+    curl_global_cleanup();
+    socExit();
+    free(soc_buffer);
 }
 
-std::unique_ptr<Pokemon>  PokemonApi::classifyImage(const uint8_t* imageData, uint32_t imageSize) {
-    httpcContext context;
+std::unique_ptr<Pokemon> PokemonApi::classifyImage(const uint8_t* imageData, uint32_t imageSize) {
+    CURL* curl = curl_easy_init();
+    if (!curl) return nullptr;
+
     std::string url = baseUrl + "/classify";
+    std::string response_string;
 
-    Result ret = httpcOpenContext(&context, HTTPC_METHOD_POST, url.c_str(), 0);
-    if (R_FAILED(ret)) return nullptr;
+    curl_mime* mime = curl_mime_init(curl);
+    curl_mimepart* part = curl_mime_addpart(mime);
+    curl_mime_name(part, "file");
+    curl_mime_data(part, (const char*)imageData, imageSize);
+    curl_mime_filename(part, "capture.raw");
+    curl_mime_type(part, "application/octet-stream");
 
-    httpcSetSSLOpt(&context, SSLCOPT_DisableVerify);
-    httpcAddRequestHeaderField(&context, "X-API-KEY", apiKey.c_str());
+    struct curl_slist* headers = nullptr;
+    std::string apiHeader = "X-API-KEY: " + apiKey;
+    headers = curl_slist_append(headers, apiHeader.c_str());
 
-    const char* boundary = "----3DSPokedexBoundary";
-    std::string bodyStart = "--";
-    bodyStart += boundary;
-    bodyStart += "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"capture.raw\"\r\n";
-    bodyStart += "Content-Type: application/octet-stream\r\n\r\n";
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 
-    std::string bodyEnd = "\r\n--";
-    bodyEnd += boundary;
-    bodyEnd += "--\r\n";
+    CURLcode res = curl_easy_perform(curl);
+    long response_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
 
-    uint32_t totalSize = bodyStart.length() + imageSize + bodyEnd.length();
+    curl_mime_free(mime);
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
 
-    std::string contentType = "multipart/form-data; boundary=";
-    contentType += boundary;
-    httpcAddRequestHeaderField(&context, "Content-Type", contentType.c_str());
-
-    uint8_t* fullBuffer = (uint8_t*)malloc(totalSize);
-    if (!fullBuffer) {
-        httpcCloseContext(&context);
+    if (res != CURLE_OK || response_code != 200) {
         return nullptr;
     }
-
-    memcpy(fullBuffer, bodyStart.c_str(), bodyStart.length());
-    memcpy(fullBuffer + bodyStart.length(), imageData, imageSize);
-    memcpy(fullBuffer + bodyStart.length() + imageSize, bodyEnd.c_str(), bodyEnd.length());
-
-    ret = httpcAddPostDataRaw(&context, (u32*)fullBuffer, totalSize);
-    if (R_FAILED(ret)) {
-        free(fullBuffer);
-        httpcCloseContext(&context);
-        return nullptr;
-    }
-
-    ret = httpcBeginRequest(&context);
-    free(fullBuffer);
-    if (R_FAILED(ret)) {
-        httpcCloseContext(&context);
-        return nullptr;
-    }
-
-    u32 statuscode = 0;
-    httpcGetResponseStatusCode(&context, &statuscode);
-    if (statuscode != 200) {
-        httpcCloseContext(&context);
-        return nullptr;
-    }
-
-    u32 contentsize = 0;
-    httpcGetDownloadSizeState(&context, NULL, &contentsize);
-
-    char* responseBuf = (char*)malloc(contentsize + 1);
-    if (!responseBuf) {
-        httpcCloseContext(&context);
-        return nullptr;
-    }
-
-    u32 readsize = 0;
-    ret = httpcDownloadData(&context, (u8*)responseBuf, contentsize, &readsize);
-    responseBuf[readsize] = '\0';
-    std::string jsonResponse = responseBuf;
-
-    free(responseBuf);
-    httpcCloseContext(&context);
-
-    if (R_FAILED(ret)) return nullptr;
 
     auto pokemon = std::make_unique<Pokemon>();
-    parseApiResponse(jsonResponse, *pokemon);
-    return pokemon;
-}
-
-static int jsoneq(const char *json, jsmntok_t *tok, const char *s) {
-    if (tok->type == JSMN_STRING && (int)strlen(s) == tok->end - tok->start &&
-        strncmp(json + tok->start, s, tok->end - tok->start) == 0) {
-        return 0;
+    if (parseApiResponse(response_string, *pokemon)) {
+        return pokemon;
     }
-    return -1;
+    return nullptr;
 }
 
 std::unique_ptr<Pokemon> PokemonApi::getPokemon(const std::string &pokemonName) {
-    httpcContext context;
+    CURL* curl = curl_easy_init();
+    if (!curl) return nullptr;
+
     std::string url = baseUrl + "/pokemon/" + pokemonName;
+    std::string response_string;
 
-    Result ret = httpcOpenContext(&context, HTTPC_METHOD_GET, url.c_str(), 0);
-    if (R_FAILED(ret)) return nullptr;
+    struct curl_slist* headers = nullptr;
+    std::string apiHeader = "X-API-KEY: " + apiKey;
+    headers = curl_slist_append(headers, apiHeader.c_str());
 
-    httpcSetSSLOpt(&context, SSLCOPT_DisableVerify);
-    httpcAddRequestHeaderField(&context, "X-API-KEY", apiKey.c_str());
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 
-    ret = httpcBeginRequest(&context);
-    if (R_FAILED(ret)) {
-        printf(COLOR_RED "Failed to make request!\n" COLOR_RESET);
-        httpcCloseContext(&context);
+    CURLcode res = curl_easy_perform(curl);
+    long response_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+
+    if (res != CURLE_OK || response_code != 200) {
         return nullptr;
     }
-
-    u32 statuscode = 0;
-    httpcGetResponseStatusCode(&context, &statuscode);
-    if (statuscode != 200) {
-        printf(COLOR_RED "Request failed with %u !\n" COLOR_RESET, statuscode);
-        httpcCloseContext(&context);
-        return nullptr;
-    }
-    u32 contentsize = 0;
-    httpcGetDownloadSizeState(&context, nullptr, &contentsize);
-
-    char* responseBuf = (char*)malloc(contentsize + 1);
-    if (!responseBuf) {
-        httpcCloseContext(&context);
-        return nullptr;
-    }
-
-    u32 readsize = 0;
-    ret = httpcDownloadData(&context, (u8*)responseBuf, contentsize, &readsize);
-    responseBuf[readsize] = '\0';
-    std::string jsonResponse = responseBuf;
-
-    free(responseBuf);
-    httpcCloseContext(&context);
-
-    if (R_FAILED(ret)) return nullptr;
 
     auto pokemon = std::make_unique<Pokemon>();
-    parseApiResponse(jsonResponse, *pokemon);
-    return pokemon;
+    if (parseApiResponse(response_string, *pokemon)) {
+        return pokemon;
+    }
+    return nullptr;
 }
 
 bool PokemonApi::parseApiResponse(const std::string& json, Pokemon& outResult) {
-    jsmn_parser p;
-    jsmntok_t t[128]; // We expect less than 128 tokens
-    jsmn_init(&p);
-    int r = jsmn_parse(&p, json.c_str(), json.length(), t, sizeof(t) / sizeof(t[0]));
-    if (r < 0) {
-        return false;
-    }
-
-    // Assume the top-level element is an object
-    if (r < 1 || t[0].type != JSMN_OBJECT) {
+    json_object *root = json_tokener_parse(json.c_str());
+    if (!root) {
         return false;
     }
 
     memset(&outResult, 0, sizeof(Pokemon));
 
-    for (int i = 1; i < r; i++) {
-        if (jsoneq(json.c_str(), &t[i], "pokemon") == 0) {
-            int len = t[i + 1].end - t[i + 1].start;
-            int max_len = MAX_NAME_LENGTH - 1;
-            int copy_len = len < max_len ? len : max_len;
-            strncpy(outResult.name, json.c_str() + t[i + 1].start, copy_len);
-            outResult.name[copy_len] = '\0';
-            i++;
-        } else if (jsoneq(json.c_str(), &t[i], "id") == 0) {
-            std::string id_str(json.c_str() + t[i + 1].start, t[i + 1].end - t[i + 1].start);
-            outResult.id = std::stoi(id_str);
-            i++;
-        } else if (jsoneq(json.c_str(), &t[i], "description") == 0) {
-            int len = t[i + 1].end - t[i + 1].start;
-            int max_len = MAX_DESC_LENGTH - 1;
-            int copy_len = len < max_len ? len : max_len;
-            strncpy(outResult.description, json.c_str() + t[i + 1].start, copy_len);
-            outResult.description[copy_len] = '\0';
-            i++;
-        } else if (jsoneq(json.c_str(), &t[i], "types") == 0) {
-            if (t[i + 1].type == JSMN_ARRAY) {
-                int array_len = t[i + 1].size;
-                int type_count = 0;
-                int j = i + 2;
-                while (type_count < array_len && type_count < MAX_TYPES) {
-                    std::string type_name(json.c_str() + t[j].start, t[j].end - t[j].start);
-                    // Match type_name with PokemonType enum
-                    for (int k = 0; k < 18; k++) {
-                        if (type_name == type_names[k]) {
-                            outResult.types[type_count] = static_cast<PokemonType>(k);
-                            type_count++;
-                            break;
-                        }
-                    }
-                    j++;
-                }
-                outResult.type_count = type_count;
-                i = j - 1;
-            }
-        }
+    json_object *pokemon_obj;
+    if (json_object_object_get_ex(root, "pokemon", &pokemon_obj)) {
+        strncpy(outResult.name, json_object_get_string(pokemon_obj), MAX_NAME_LENGTH - 1);
+        outResult.name[MAX_NAME_LENGTH - 1] = '\0';
     }
 
+    json_object *id_obj;
+    if (json_object_object_get_ex(root, "id", &id_obj)) {
+        outResult.id = json_object_get_int(id_obj);
+    }
+
+    json_object *desc_obj;
+    if (json_object_object_get_ex(root, "description", &desc_obj)) {
+        strncpy(outResult.description, json_object_get_string(desc_obj), MAX_DESC_LENGTH - 1);
+        outResult.description[MAX_DESC_LENGTH - 1] = '\0';
+    }
+
+    json_object *types_array;
+    if (json_object_object_get_ex(root, "types", &types_array) && json_object_get_type(types_array) == json_type_array) {
+        int array_len = json_object_array_length(types_array);
+        int type_count = 0;
+        for (int i = 0; i < array_len && type_count < MAX_TYPES; i++) {
+            json_object *type_obj = json_object_array_get_idx(types_array, i);
+            const char *type_name = json_object_get_string(type_obj);
+            for (int k = 0; k < 18; k++) {
+                if (strcmp(type_name, type_names[k]) == 0) {
+                    outResult.types[type_count] = static_cast<PokemonType>(k);
+                    type_count++;
+                    break;
+                }
+            }
+        }
+        outResult.type_count = type_count;
+    }
+
+    json_object_put(root);
     return true;
 }

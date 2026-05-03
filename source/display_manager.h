@@ -2,7 +2,7 @@
 #define DISPLAY_MANAGER_H
 
 #include "3ds.h"
-#include <cstdio>
+
 #include "pokemon_data.h"
 #include "app_state.h"
 

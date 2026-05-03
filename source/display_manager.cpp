@@ -1,5 +1,5 @@
 #include "display_manager.h"
-#include <cstring>
+#include <cstdio>
 #include <utility>
 
 // Console objects for dual-screen support

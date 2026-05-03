@@ -29,13 +29,22 @@ cst_voice *register_cmu_us_kal(const char *voxdir);
 
 class TextToSpeech {
 public:
-    TextToSpeech();
+    TextToSpeech(const TextToSpeech&) = delete;
+    TextToSpeech& operator=(const TextToSpeech&) = delete;
+
+    static TextToSpeech& getInstance() {
+        static TextToSpeech instance;
+        return instance;
+    }
+
     ~TextToSpeech();
 
     void sayPokemonInformation(const Pokemon &pokemon);
     void playBeep(int frequency, int duration_ms);
 
 private:
+    TextToSpeech();
+
     void processText(const char* text);
     ndspWaveBuf waveBuf{};
     cst_wave *fliteWave{};

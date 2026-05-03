@@ -16,30 +16,12 @@ set(SOURCES source/main.cpp
         source/app_state.cpp
         source/text_to_speech.cpp
         source/text_to_speech.h
-        source/pokemon_classifier_client.cpp
-        source/pokemon_classifier_client.h
+        source/camera.cpp
+        source/camera.h
         source/secrets.h
         source/pokemon_api.cpp
         source/pokemon_api.h
 )
-
-include(FetchContent)
-
-FetchContent_Declare(
-        jsmn
-        GIT_REPOSITORY https://github.com/zserge/jsmn
-        GIT_TAG master # Or a specific version tag
-)
-
-if(NOT jsmn_POPULATED)
-    FetchContent_MakeAvailable(jsmn)
-
-    # Manually create the target because the repo lacks a CMakeLists.txt
-    add_library(jsmn INTERFACE)
-
-    # Point the target to the fetched source directory
-    target_include_directories(jsmn INTERFACE ${jsmn_SOURCE_DIR})
-endif()
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
@@ -63,7 +45,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         flite_cmulex
         flite_usenglish
         flite
-        jsmn)
+        json-c
+        curl
+        mbedtls
+        mbedx509
+        mbedcrypto
+        z)
 
 if(COMMAND ctr_create_3dsx)
     ctr_create_3dsx(${PROJECT_NAME}
