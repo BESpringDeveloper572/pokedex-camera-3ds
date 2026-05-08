@@ -3,11 +3,12 @@
 
 #include <3ds.h>
 
+constexpr size_t CAM_WIDTH = 400;
+constexpr size_t CAM_HEIGHT = 240;
+constexpr size_t CAM_BUF_SIZE = (CAM_WIDTH * CAM_HEIGHT * 2);
+
 class Camera {
 public:
-    Camera(const Camera&) = delete;
-    Camera& operator=(const Camera&) = delete;
-
     static Camera& getInstance() {
         static Camera instance;
         return instance;
@@ -15,17 +16,33 @@ public:
 
     ~Camera();
 
-    // Camera viewfinder and capture management
-    void startCapture();
-    void stopCapture();
-    void getLatestFrame(u8* outRGB24);
+    bool init();
+    void exit();
 
-    void writePictureToFramebufferRGB24_Y2R(void *fb, void *img, u16 x, u16 y, u16 width, u16 height);
+    // Safe copy of the current frame using LightLock
+    void copyFrame(u16* outBuffer);
+    
+    // Direct lock access for preview
+    void lockBuffer() { LightLock_Lock(&lock); }
+    void unlockBuffer() { LightLock_Unlock(&lock); }
+
+    u16* getSharedBuffer() { return sharedBuffer; }
+    bool isFrameReady() { return frameReady; }
+    void clearFrameReady() { frameReady = false; }
 
 private:
     Camera();
-
     bool initialized;
+    
+    Thread thread;
+    Handle stopEvent;
+    u16* sharedBuffer;
+    volatile bool frameReady;
+    
+    LightLock lock;
+    LightLock stateLock;
+
+    friend void cameraThreadFunc(void* arg);
 };
 
 #endif // CAMERA_H

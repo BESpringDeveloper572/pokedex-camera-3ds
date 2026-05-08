@@ -1,13 +1,14 @@
 #ifndef DISPLAY_MANAGER_H
 #define DISPLAY_MANAGER_H
 
-#include "3ds.h"
+extern "C" {
+    #include <3ds.h>
+    #include <citro2d.h>
+    #include <citro3d.h>
+}
 
 #include "pokemon_data.h"
 #include "app_state.h"
-
-// Console objects for dual-screen support
-extern PrintConsole topScreen, bottomScreen;
 
 // ANSI color codes for 3DS console
 #define COLOR_RED     "\x1b[31m"
@@ -45,6 +46,7 @@ public:
     ~DisplayManager();
 
     // Screen rendering
+    void beginFrame();
     void clearTopScreen();
     void clearBottomScreen();
     void swapBuffers();
@@ -53,8 +55,12 @@ public:
     void drawPokemonDetailsTop(const Pokemon& pokemon, AppState state);
     void drawPokemonListBottom(const Pokemon* pokemon_list, int list_size, int selected_index);
     void drawSearchModeBottom(const ApplicationState* app_state);
+    void drawViewfinderUI();
+    void drawCameraPreview();
+    void updateCameraTexture(u16* linearBuf);
 
 private:
+    void initCameraTexture();
     DisplayManager();
     // Helper functions for drawing
     void drawText(gfxScreen_t screen, int x, int y, const char* text);
@@ -64,11 +70,11 @@ private:
     const char* getTypeEmoji(PokemonType type);
     const char* getStateLabel(AppState state);
     const char* getStateColor(AppState state);
+
+    C3D_Tex cameraTex;
+    C2D_Image cameraImage;
+    Tex3DS_SubTexture cameraSubTex;
+    bool cameraTexInitialized;
 };
 
 #endif // DISPLAY_MANAGER_H
-
-
-
-
-

@@ -18,10 +18,10 @@ TextToSpeech::~TextToSpeech() {
 void TextToSpeech::sayPokemonInformation(const Pokemon &pokemon) {
     processText(pokemon.name);
     std::ostringstream oss;
-    oss << type_names[static_cast<int>(std::to_underlying(pokemon.types.at(0)))];
+    oss << type_names[static_cast<int>(pokemon.types.at(0))];
     if (pokemon.type_count > 1) {
             oss << "and ";
-            oss << type_names[static_cast<int>(std::to_underlying(pokemon.types.at(1)))];
+            oss << type_names[static_cast<int>(pokemon.types.at(1))];
     }
     oss << " Pokemon";
     std::string typeDescription = oss.str();
@@ -54,8 +54,8 @@ void TextToSpeech::processText(const char* text) {
 
     float mix[12];
     memset(mix, 0, sizeof(mix));
-    mix[0] = 1.0f; // Left front speaker
-    mix[1] = 1.0f; // Right front speaker
+    mix[0] = 2.0f; // Left front speaker (Louder)
+    mix[1] = 2.0f; // Right front speaker (Louder)
     ndspChnSetMix(channel, mix);
 
     DSP_FlushDataCache(samples, dataSize);
@@ -83,8 +83,8 @@ void TextToSpeech::playBeep(int frequency, int duration_ms) {
 
     // 2. Generate a Square Wave
     for (u32 i = 0; i < numSamples; i++) {
-        // Toggle between -0x1000 and 0x1000 based on frequency
-        beepSamples[i] = ((i * frequency / sampleRate) % 2) ? 0x1000 : -0x1000;
+        // Toggle between -0x4000 and 0x4000 based on frequency (Louder)
+        beepSamples[i] = ((i * frequency / sampleRate) % 2) ? 0x4000 : -0x4000;
     }
 
     // 3. Flush Cache (CRITICAL for physical 3DS)
@@ -104,14 +104,13 @@ void TextToSpeech::playBeep(int frequency, int duration_ms) {
     ndspChnSetFormat(channel, NDSP_FORMAT_MONO_PCM16);
     ndspChnSetRate(channel, sampleRate);
 
-    // 6. Set the Volume Mix (The reason for many "silent" bugs)
-    float mix[12]; // Explicitly use size 12
+    // 6. Set the Volume Mix
+    float mix[12]; 
     memset(mix, 0, sizeof(mix));
-    mix[0] = 1.0f; // Left Front
-    mix[1] = 1.0f; // Right Front
-    // Some 3DS models/emulators require back channels filled for stereo
-    mix[2] = 1.0f; // Left Back
-    mix[3] = 1.0f; // Right Back
+    mix[0] = 2.0f; // Left Front
+    mix[1] = 2.0f; // Right Front
+    mix[2] = 2.0f; // Left Back
+    mix[3] = 2.0f; // Right Back
     ndspChnSetMix(0, mix);
 
     // 7. Play

@@ -1,14 +1,8 @@
-//
-// Created by Ivan Huynh on 5/1/26.
-//
-
 #ifndef INC_3DS_APP_POKEMON_API_H
 #define INC_3DS_APP_POKEMON_API_H
 
-
 #include <string>
-#include <bits/unique_ptr.h>
-
+#include <memory>
 #include "pokemon_data.h"
 #include "secrets.h"
 
@@ -18,7 +12,7 @@ public:
     PokemonApi& operator=(const PokemonApi&) = delete;
 
     static PokemonApi& getInstance() {
-        static PokemonApi instance(API_BASE_URL, API_KEY);
+        static PokemonApi instance(API_HOSTNAME, API_KEY);
         return instance;
     }
 
@@ -26,14 +20,17 @@ public:
 
     // Perform the HTTP POST request with image data
     std::unique_ptr<Pokemon> classifyImage(const uint8_t *imageData, uint32_t imageSize);
-
     std::unique_ptr<Pokemon> getPokemon(const std::string &pokemonName);
+
 private:
-    PokemonApi(const std::string &baseUrl, const std::string &apiKey);
-    std::string baseUrl;
+    PokemonApi(const std::string &api_hostname, const std::string &apiKey);
+    std::string api_hostname;
     std::string apiKey;
 
-    // JSON parser using libjson-c
+    // Transient networking initialization
+    bool initNetworking();
+    void deinitNetworking();
+
     bool parseApiResponse(const std::string& json, Pokemon& outResult);
 };
 

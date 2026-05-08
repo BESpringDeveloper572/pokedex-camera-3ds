@@ -1,4 +1,14 @@
 cmake_minimum_required(VERSION 3.10)
+string(TIMESTAMP CONFIG_TIME "%Y-%m-%d %H:%M:%S")
+message(STATUS "Configuring 3ds-app at: ${CONFIG_TIME}")
+
+# Print timestamp during every build
+add_custom_target(BuildTimestamp ALL
+    COMMAND /bin/date "+Build started at: %Y-%m-%d %H:%M:%S"
+    COMMENT "Logging build timestamp"
+    VERBATIM
+)
+
 set(CMAKE_CXX_STANDARD 23)
 
 project(3ds-app)
@@ -35,22 +45,22 @@ include_directories($ENV{DEVKITPRO}/portlibs/3ds/include)
 link_directories($ENV{DEVKITPRO}/libctru/lib)
 link_directories($ENV{DEVKITPRO}/portlibs/3ds/lib)
 
-
 target_link_libraries(${PROJECT_NAME} PRIVATE
         citro2d
         citro3d
-        ctru
-        m
         flite_cmu_us_kal
         flite_cmulex
         flite_usenglish
         flite
         json-c
-        curl
+        curl              # Depends on mbedtls, z, and ctru
         mbedtls
         mbedx509
         mbedcrypto
-        z)
+        z
+        ctru              # Base library: should be near the bottom
+        m                 # Math library: almost always last
+)
 
 if(COMMAND ctr_create_3dsx)
     ctr_create_3dsx(${PROJECT_NAME}
