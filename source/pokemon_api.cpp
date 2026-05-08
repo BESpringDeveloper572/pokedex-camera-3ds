@@ -71,7 +71,7 @@ std::string resolveHost(const std::string& host) {
     }
 
     char ip[INET_ADDRSTRLEN];
-    struct sockaddr_in* addr = (struct sockaddr_in*)res->ai_addr;
+    sockaddr_in* addr = (struct sockaddr_in*)res->ai_addr;
     inet_ntop(AF_INET, &addr->sin_addr, ip, INET_ADDRSTRLEN);
     
     freeaddrinfo(res);
@@ -91,7 +91,7 @@ std::unique_ptr<Pokemon> PokemonApi::classifyImage(const uint8_t* imageData, uin
     std::string response_string;
 
     std::string ip = resolveHost(api_hostname);
-    struct curl_slist* resolve_list = nullptr;
+    curl_slist* resolve_list = nullptr;
     if (!ip.empty()) {
         std::string resolve_str = api_hostname + ":443:" + ip;
         resolve_list = curl_slist_append(NULL, resolve_str.c_str());
@@ -106,10 +106,10 @@ std::unique_ptr<Pokemon> PokemonApi::classifyImage(const uint8_t* imageData, uin
     curl_mime_type(part, "application/octet-stream");
 
     struct curl_slist* headers = nullptr;
-    std::string apiHeader = "X-API-KEY: " + apiKey;
-    headers = curl_slist_append(headers, apiHeader.c_str());
+    headers = curl_slist_append(headers, ("X-API-KEY: " + apiKey).c_str());
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, USER_AGENT);
     curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
@@ -158,10 +158,10 @@ std::unique_ptr<Pokemon> PokemonApi::getPokemon(const std::string &pokemonName) 
     }
 
     struct curl_slist* headers = nullptr;
-    std::string apiHeader = "X-API-KEY: " + apiKey;
-    headers = curl_slist_append(headers, apiHeader.c_str());
+    headers = curl_slist_append(headers, ("X-API-KEY: " + apiKey).c_str());
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, USER_AGENT);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
