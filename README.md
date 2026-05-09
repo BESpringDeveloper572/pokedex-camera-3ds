@@ -57,6 +57,22 @@ A high-performance graphical Pokedex application for Nintendo 3DS built with **l
 - **Platform**: Nintendo 3DS (devkitPro / arm-none-eabi-gcc)
 - **API Backend**: FastAPI (Python) + PIL for 3DS tiling logic
 
+## Configuration
+
+The application requires a `source/secrets.h` file to communicate with the backend API. This file is excluded from version control to protect credentials.
+
+Create `source/secrets.h` with the following content:
+```cpp
+#ifndef INC_3DS_APP_SECRETS_H
+#define INC_3DS_APP_SECRETS_H
+
+#define API_KEY "your_api_key_here"
+#define API_HOSTNAME "your_api_hostname_here"
+#define USER_AGENT "3DSPokedex/1.0.0"
+
+#endif
+```
+
 ## Build & Deployment
 
 Build using CMake:
