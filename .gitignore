@@ -198,4 +198,4 @@ Temporary Items
 
 3ds
 
-source/secrets.h
+source/secrets.h\n# Build directory\nbuild/
