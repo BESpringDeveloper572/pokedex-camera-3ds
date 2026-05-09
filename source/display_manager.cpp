@@ -159,6 +159,22 @@ void DisplayManager::drawClassifyingUI() {
     r.drawText(60, 100, 0.7f, Renderer::Color(255, 255, 0), "Classifying Pokemon...", false);
 }
 
+void DisplayManager::drawProgressBar(float x, float y, float width, float height, float progress) {
+    auto& r = Renderer::getInstance();
+    if (progress < 0.0f) progress = 0.0f;
+    if (progress > 1.0f) progress = 1.0f;
+
+    // Background bar
+    r.drawRect(x, y, width, height, Renderer::Color(60, 60, 60), false);
+    // Filled bar
+    r.drawRect(x, y, width * progress, height, Renderer::Color(0, 255, 0), false);
+    // Border
+    r.drawRect(x - 2, y - 2, width + 4, 2, Renderer::Color(200, 200, 200), false); // Top
+    r.drawRect(x - 2, y + height, width + 4, 2, Renderer::Color(200, 200, 200), false); // Bottom
+    r.drawRect(x - 2, y - 2, 2, height + 4, Renderer::Color(200, 200, 200), false); // Left
+    r.drawRect(x + width, y - 2, 2, height + 4, Renderer::Color(200, 200, 200), false); // Right
+}
+
 void DisplayManager::drawErrorUI() {
     auto& r = Renderer::getInstance();
     r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(50, 0, 0), false);

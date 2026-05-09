@@ -57,6 +57,7 @@ public:
     void drawSearchModeBottom(const ApplicationState* app_state);
     void drawViewfinderUI();
     void drawClassifyingUI();
+    void drawProgressBar(float x, float y, float width, float height, float progress);
     void drawErrorUI();
     void drawCameraPreview();
     void updateCameraTexture(u16* linearBuf);

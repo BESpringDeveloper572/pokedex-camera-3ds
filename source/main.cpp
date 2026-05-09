@@ -26,12 +26,15 @@ int main(int argc, char *argv[]) {
     string keyboardInput;
     keyboardInput.reserve(64);
 
-    Pokemon detail;
-    u16* cameraFrame = (u16*)memalign(0x1000, CAM_BUF_SIZE);
+    Pokemon detail{};
+    auto cameraFrame = (u16 *) memalign(0x1000, CAM_BUF_SIZE);
 
     // Create test Pokemon data
     Pokemon test_pokemon[] = {
-        {1, "Bulbasaur", {PokemonType::GRASS, PokemonType::POISON}, 2, "A small quadrupedal Pokemon with a bulb on its back."},
+        {
+            1, "Bulbasaur", {PokemonType::GRASS, PokemonType::POISON}, 2,
+            "A small quadrupedal Pokemon with a bulb on its back."
+        },
         {4, "Charmander", {PokemonType::FIRE}, 1, "A small lizard Pokemon that breathes fire."},
         {7, "Squirtle", {PokemonType::WATER}, 1, "A small turtle Pokemon with a hard shell."},
         {25, "Pikachu", {PokemonType::ELECTRIC}, 1, "An electric mouse Pokemon that shoots lightning."}
@@ -68,14 +71,14 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        if (input.isAPressed()) {
-            if (app_state.getCurrentState() == LIST_VIEW || app_state.getCurrentState() == SEARCH_MODE) {
-                app_state.setState(DETAIL_VIEW);
-            }
+        if (input.isAPressed() && (app_state.getCurrentState() == LIST_VIEW || app_state.getCurrentState() ==
+                                   SEARCH_MODE)) {
+            app_state.setState(DETAIL_VIEW);
         }
 
         if (input.isBPressed()) {
-            if (app_state.getCurrentState() == DETAIL_VIEW || app_state.getCurrentState() == SEARCH_MODE || app_state.getCurrentState() == ERROR) {
+            if (app_state.getCurrentState() == DETAIL_VIEW || app_state.getCurrentState() == SEARCH_MODE || app_state.
+                getCurrentState() == ERROR) {
                 app_state.setState(LIST_VIEW);
             } else if (app_state.getCurrentState() == VIEWFINDER) {
                 camera.exit();
@@ -92,7 +95,8 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        if (input.isKeyDown(KEY_Y) && (app_state.getCurrentState() == LIST_VIEW || app_state.getCurrentState() == DETAIL_VIEW)) {
+        if (input.isKeyDown(KEY_Y) && (app_state.getCurrentState() == LIST_VIEW || app_state.getCurrentState() ==
+                                       DETAIL_VIEW)) {
             camera.init();
             app_state.setState(VIEWFINDER);
         }
@@ -107,20 +111,42 @@ int main(int argc, char *argv[]) {
                 display.updateCameraTexture(cameraFrame);
             }
             display.drawCameraPreview();
-            
+
             if (input.isKeyDown(KEY_R)) {
                 app_state.setState(CLASSIFYING);
+
+                // Show initial progress
+                display.beginFrame();
                 display.drawClassifyingUI();
+                display.drawProgressBar(60, 140, 200, 20, 0.1f);
                 display.swapBuffers();
-                
-                if (auto pokemon = pokemonApi.classifyImage((uint8_t*)cameraFrame, CAM_BUF_SIZE)) {
+
+                // Simulated early progress while preparing
+                for (float p = 0.15f; p < 0.35f; p += 0.05f) {
+                    display.beginFrame();
+                    display.drawClassifyingUI();
+                    display.drawProgressBar(60, 140, 200, 20, p);
+                    display.swapBuffers();
+                    svcSleepThread(50000000ULL);
+                }
+
+
+                if (auto pokemon = pokemonApi.classifyImage((uint8_t*)cameraFrame, CAM_BUF_SIZE); pokemon) {
+                    // Simulated completion progress
+                    for (float p = 0.4f; p <= 1.0f; p += 0.1f) {
+                        display.beginFrame();
+                        display.drawClassifyingUI();
+                        display.drawProgressBar(60, 140, 200, 20, p);
+                        display.swapBuffers();
+                        svcSleepThread(30000000ULL);
+                    }
+
                     app_state.addPokemon(*pokemon);
                     app_state.setState(DETAIL_VIEW);
                 } else {
                     app_state.setState(ERROR);
                 }
                 camera.exit();
-                // We need to start a new frame after a synchronous block like this
                 display.beginFrame();
             }
         }
@@ -132,18 +158,19 @@ int main(int argc, char *argv[]) {
         switch (app_state.getCurrentState()) {
             case LIST_VIEW:
                 display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
-                display.drawPokemonListBottom(app_state.getPokemonList().data(), app_state.getPokemonCount(), app_state.getSelectedIndex());
+                display.drawPokemonListBottom(app_state.getPokemonList().data(), app_state.getPokemonCount(),
+                                              app_state.getSelectedIndex());
                 break;
 
             case DETAIL_VIEW:
                 if (state_changed) {
                     if (auto pokemon = pokemonApi.getPokemon(app_state.getSelectedPokemon()->name)) {
                         detail = *pokemon;
-                        
+
                         // Fetch sprite (using a small 128x128 size)
                         auto spriteData = pokemonApi.getPokemonSprite(detail.name, 128);
                         display.updatePokemonSprite(spriteData, 128);
-                        
+
                         should_speak = true;
                     } else {
                         app_state.setState(ERROR);
