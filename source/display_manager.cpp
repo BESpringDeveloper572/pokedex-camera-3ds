@@ -1,110 +1,117 @@
 #include "display_manager.h"
+#include "renderer.h"
 #include <cstdio>
 #include <utility>
 
-// Console objects
-PrintConsole bottomScreenConsole;
-C3D_RenderTarget* topTarget;
-
-DisplayManager::DisplayManager() : cameraTexInitialized(false) {
-    gfxInitDefault();
-    
-    // Initialize Citro3D and Citro2D
-    C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
-    C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
-    C2D_Prepare();
-
-    // Create a target for the Top Screen
-    topTarget = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
-
-    // ONLY initialize console on the bottom screen
-    consoleInit(GFX_BOTTOM, &bottomScreenConsole);
+DisplayManager::DisplayManager() : cameraTexInitialized(false), spriteTexInitialized(false), currentSpriteSize(0) {
+    Renderer::getInstance().init();
 }
 
 DisplayManager::~DisplayManager() {
-    C2D_Fini();
-    C3D_Fini();
-    gfxExit();
+    if (spriteTexInitialized) C3D_TexDelete(&spriteTex);
 }
 
 void DisplayManager::clearTopScreen() {
-    C2D_TargetClear(topTarget, C2D_Color32(30, 30, 30, 255)); // Dark Grey background
+    // Renderer handles clearing via scene begin or explicit clear if needed
 }
 
 void DisplayManager::clearBottomScreen() {
-    consoleSelect(&bottomScreenConsole);
-    printf("\x1b[2J\x1b[H"); 
+    // No longer using console
 }
 
 void DisplayManager::swapBuffers() {
-    C3D_FrameEnd(0);
+    Renderer::getInstance().endFrame();
 }
 
 void DisplayManager::beginFrame() {
-    C3D_FrameBegin(0);
-    C2D_SceneBegin(topTarget);
+    Renderer::getInstance().beginFrame();
 }
 
 // --- Rendering Implementation ---
 
 void DisplayManager::drawPokemonDetailsTop(const Pokemon& pokemon, AppState state) {
-    clearBottomScreen();
-    u32 color = C2D_Color32(100, 100, 100, 255);
+    auto& r = Renderer::getInstance();
+    
+    u32 color = Renderer::Color(100, 100, 100);
     if (pokemon.type_count > 0) {
-        switch(pokemon.types[0]) {
-            case PokemonType::FIRE:     color = C2D_Color32(255, 69, 0, 255); break;
-            case PokemonType::WATER:    color = C2D_Color32(30, 144, 255, 255); break;
-            case PokemonType::GRASS:    color = C2D_Color32(50, 205, 50, 255); break;
-            case PokemonType::ELECTRIC: color = C2D_Color32(255, 215, 0, 255); break;
-            default: break;
-        }
+        color = getTypeColor(pokemon.types[0]);
     }
     
-    C2D_DrawRectSolid(0, 0, 0.1f, TOP_WIDTH, 40, color);
+    // Top Screen UI
+    r.drawRect(0, 0, TOP_WIDTH, 40, color, true);
+    char idName[64];
+    snprintf(idName, sizeof(idName), "#%03d %s", pokemon.id, pokemon.name);
+    r.drawText(10, 10, 0.6f, Renderer::Color(255, 255, 255), idName, true);
     
-    consoleSelect(&bottomScreenConsole);
-    printf("\x1b[1;1H" COLOR_BRIGHT_WHITE "#%03d %-15s" COLOR_RESET, pokemon.id, pokemon.name);
-    printf("\x1b[3;1HTypes: ");
+    // Bottom Screen UI
+    r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(30, 30, 30), false);
+    r.drawText(10, 10, 0.5f, Renderer::Color(200, 200, 200), "Types:", false);
+    
+    float typeX = 70;
     for(int i=0; i<pokemon.type_count; i++) {
-        printf("%s[%s] " COLOR_RESET, getTypeColor(pokemon.types[i]), type_names[static_cast<int>(pokemon.types[i])]);
+        u32 typeColor = getTypeColor(pokemon.types[i]);
+        r.drawRect(typeX, 10, 80, 20, typeColor, false);
+        r.drawText(typeX + 5, 12, 0.4f, Renderer::Color(255, 255, 255), type_names[static_cast<int>(pokemon.types[i])], false);
+        typeX += 90;
     }
-    printf("\x1b[5;1HDescription:\n%s", pokemon.description);
+    
+    r.drawText(10, 40, 0.5f, Renderer::Color(255, 255, 255), "Description:", false);
+    r.drawTextWrapped(10, 60, 0.45f, 300.0f, Renderer::Color(200, 200, 200), pokemon.description, false);
 }
 
 void DisplayManager::drawPokemonListBottom(const Pokemon* pokemon_list, int list_size, int selected_index) {
-    consoleSelect(&bottomScreenConsole);
-    printf("\x1b[8;1H" COLOR_CYAN "--- Pokedex List ---" COLOR_RESET "\n");
+    auto& r = Renderer::getInstance();
+    r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(30, 30, 30), false);
+    r.drawText(10, 5, 0.6f, Renderer::Color(0, 255, 255), "--- Pokedex List ---", false);
     
     for (int i = 0; i < list_size; i++) {
-        if (i == selected_index) {
-            printf(COLOR_BRIGHT_YELLOW "> #%03d %-15s" COLOR_RESET "\n", pokemon_list[i].id, pokemon_list[i].name);
-        } else {
-            printf("  #%03d %-15s\n", pokemon_list[i].id, pokemon_list[i].name);
-        }
+        float y = 30 + i * 20;
+        u32 color = (i == selected_index) ? Renderer::Color(255, 255, 0) : Renderer::Color(255, 255, 255);
+        char entry[64];
+        snprintf(entry, sizeof(entry), "%s #%03d %s", (i == selected_index ? ">" : " "), pokemon_list[i].id, pokemon_list[i].name);
+        r.drawText(10, y, 0.5f, color, entry, false);
     }
 }
 
 void DisplayManager::drawSearchModeBottom(const ApplicationState* app_state) {
-    consoleSelect(&bottomScreenConsole);
-    printf("\x1b[1;1H" COLOR_MAGENTA "=== SEARCH MODE ===" COLOR_RESET);
-    printf("\x1b[3;1HSearch: %s_", app_state->getSearchText());
+    auto& r = Renderer::getInstance();
+    r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(40, 20, 40), false);
+    r.drawText(10, 10, 0.7f, Renderer::Color(255, 0, 255), "=== SEARCH MODE ===", false);
     
-    int count = app_state->getFilteredCount();
-    printf("\x1b[5;1HResults found: %d", count);
+    char searchPrompt[128];
+    snprintf(searchPrompt, sizeof(searchPrompt), "Search: %s_", app_state->getSearchText());
+    r.drawText(10, 50, 0.6f, Renderer::Color(255, 255, 255), searchPrompt, false);
     
-    if (count > 0) {
-        printf("\x1b[7;1HPress (A) to view selected");
+    char resultsCount[64];
+    snprintf(resultsCount, sizeof(resultsCount), "Results found: %d", app_state->getFilteredCount());
+    r.drawText(10, 80, 0.5f, Renderer::Color(200, 200, 200), resultsCount, false);
+    
+    if (app_state->getFilteredCount() > 0) {
+        r.drawText(10, 150, 0.5f, Renderer::Color(0, 255, 0), "Press (A) to view selected", false);
     }
 }
 
-const char* DisplayManager::getTypeColor(PokemonType type) {
+u32 DisplayManager::getTypeColor(PokemonType type) {
     switch (type) {
-        case PokemonType::FIRE:     return COLOR_RED;
-        case PokemonType::WATER:    return COLOR_BLUE;
-        case PokemonType::GRASS:    return COLOR_GREEN;
-        case PokemonType::ELECTRIC: return COLOR_YELLOW;
-        case PokemonType::PSYCHIC:  return COLOR_MAGENTA;
-        default:                    return COLOR_WHITE;
+        case PokemonType::NORMAL:   return Renderer::Color(168, 168, 120);
+        case PokemonType::FIRE:     return Renderer::Color(240, 128, 48);
+        case PokemonType::WATER:    return Renderer::Color(104, 144, 240);
+        case PokemonType::GRASS:    return Renderer::Color(120, 200, 80);
+        case PokemonType::ELECTRIC: return Renderer::Color(248, 208, 48);
+        case PokemonType::ICE:      return Renderer::Color(152, 216, 216);
+        case PokemonType::FIGHTING: return Renderer::Color(192, 48, 40);
+        case PokemonType::POISON:   return Renderer::Color(160, 64, 160);
+        case PokemonType::GROUND:   return Renderer::Color(224, 192, 104);
+        case PokemonType::FLYING:   return Renderer::Color(168, 144, 240);
+        case PokemonType::PSYCHIC:  return Renderer::Color(248, 88, 136);
+        case PokemonType::BUG:      return Renderer::Color(168, 184, 32);
+        case PokemonType::ROCK:     return Renderer::Color(184, 160, 56);
+        case PokemonType::GHOST:    return Renderer::Color(112, 88, 152);
+        case PokemonType::DRAGON:   return Renderer::Color(112, 56, 248);
+        case PokemonType::DARK:     return Renderer::Color(112, 88, 72);
+        case PokemonType::STEEL:    return Renderer::Color(184, 184, 208);
+        case PokemonType::FAIRY:    return Renderer::Color(238, 153, 172);
+        default:                    return Renderer::Color(100, 100, 100);
     }
 }
 
@@ -123,7 +130,6 @@ void DisplayManager::updateCameraTexture(u16* linearBuf) {
     if (!cameraTexInitialized) initCameraTexture();
     u16* dst = (u16*)cameraTex.data;
 
-    // No direct dependency on Camera class here anymore
     for (u32 y = 0; y < 240; y++) {
         for (u32 x = 0; x < 400; x++) {
             u32 dstPos = ((((y >> 3) * (512 >> 3) + (x >> 3)) << 6) + 
@@ -137,11 +143,52 @@ void DisplayManager::updateCameraTexture(u16* linearBuf) {
 
 void DisplayManager::drawCameraPreview() {
     if (!cameraTexInitialized) return;
+    C2D_SceneBegin(Renderer::getInstance().getTopTarget());
     C2D_DrawImageAt(cameraImage, 0, 0, 0.5f);
 }
 
 void DisplayManager::drawViewfinderUI() {
-    consoleSelect(&bottomScreenConsole);
-    printf("\x1b[10;5H" COLOR_BRIGHT_WHITE "Point at a Pokemon and press (R)" COLOR_RESET);
-    printf("\x1b[12;10H" COLOR_YELLOW "Press (B) to Cancel" COLOR_RESET);
+    auto& r = Renderer::getInstance();
+    r.drawText(20, 100, 0.6f, Renderer::Color(255, 255, 255), "Point at a Pokemon and press (R)", false);
+    r.drawText(20, 130, 0.5f, Renderer::Color(255, 255, 0), "Press (B) to Cancel", false);
+}
+
+void DisplayManager::drawClassifyingUI() {
+    auto& r = Renderer::getInstance();
+    r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(30, 30, 30), false);
+    r.drawText(60, 100, 0.7f, Renderer::Color(255, 255, 0), "Classifying Pokemon...", false);
+}
+
+void DisplayManager::drawErrorUI() {
+    auto& r = Renderer::getInstance();
+    r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(50, 0, 0), false);
+    r.drawText(100, 80, 0.8f, Renderer::Color(255, 0, 0), "ERROR PAGE!", false);
+    r.drawText(40, 130, 0.6f, Renderer::Color(255, 255, 255), "Press (B) to return to list", false);
+}
+
+void DisplayManager::initSpriteTexture(int size) {
+    if (spriteTexInitialized && currentSpriteSize == size) return;
+    if (spriteTexInitialized) C3D_TexDelete(&spriteTex);
+
+    C3D_TexInit(&spriteTex, size, size, GPU_RGBA8);
+    C3D_TexSetFilter(&spriteTex, GPU_LINEAR, GPU_LINEAR);
+    spriteSubTex = { (uint16_t)size, (uint16_t)size, 0.0f, 1.0f, 1.0f, 0.0f };
+    spriteImage = { &spriteTex, &spriteSubTex };
+    spriteTexInitialized = true;
+    currentSpriteSize = size;
+}
+
+void DisplayManager::updatePokemonSprite(const std::vector<uint8_t>& tiledBytes, int size) {
+    if (tiledBytes.empty()) return;
+    initSpriteTexture(size);
+    memcpy(spriteTex.data, tiledBytes.data(), tiledBytes.size());
+    C3D_TexFlush(&spriteTex);
+}
+
+void DisplayManager::drawPokemonSprite(float x, float y, float displaySize) {
+    if (!spriteTexInitialized) return;
+    C2D_SceneBegin(Renderer::getInstance().getTopTarget());
+    
+    float scale = displaySize / (float)currentSpriteSize;
+    C2D_DrawImageAt(spriteImage, x, y, 0.5f, nullptr, scale, scale);
 }

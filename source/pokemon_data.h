@@ -7,7 +7,7 @@
 
 // Maximum string lengths for compact storage on 3DS
 constexpr uint16_t MAX_NAME_LENGTH = 20;
-constexpr uint16_t MAX_DESC_LENGTH = 100;
+constexpr uint16_t MAX_DESC_LENGTH = 1024;
 constexpr uint8_t MAX_TYPES = 2;
 inline constexpr const char* type_names[] = {
     "Normal", "Fire", "Water", "Grass", "Electric", "Ice", "Fighting",

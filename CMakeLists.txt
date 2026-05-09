@@ -31,6 +31,7 @@ set(SOURCES source/main.cpp
         source/secrets.h
         source/pokemon_api.cpp
         source/pokemon_api.h
+        source/renderer.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

@@ -20,9 +20,20 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+struct CurlUserData {
+    std::string* str;
+    std::vector<uint8_t>* vec;
+};
+
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    ((std::string*)userp)->append((char*)contents, size * nmemb);
-    return size * nmemb;
+    auto* data = static_cast<CurlUserData*>(userp);
+    size_t totalSize = size * nmemb;
+    if (data->str) {
+        data->str->append(static_cast<char*>(contents), totalSize);
+    } else if (data->vec) {
+        data->vec->insert(data->vec->end(), static_cast<uint8_t*>(contents), static_cast<uint8_t*>(contents) + totalSize);
+    }
+    return totalSize;
 }
 
 static u32* soc_buffer = nullptr;
@@ -37,6 +48,7 @@ PokemonApi::~PokemonApi() {
 }
 
 bool PokemonApi::initNetworking() {
+    if (soc_buffer) return true;
     soc_buffer = (u32*)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
     if (!soc_buffer) return false;
 
@@ -52,12 +64,6 @@ bool PokemonApi::initNetworking() {
 }
 
 void PokemonApi::deinitNetworking() {
-    curl_global_cleanup();
-    socExit();
-    if (soc_buffer) {
-        free(soc_buffer);
-        soc_buffer = nullptr;
-    }
 }
 
 std::string resolveHost(const std::string& host) {
@@ -82,13 +88,11 @@ std::unique_ptr<Pokemon> PokemonApi::classifyImage(const uint8_t* imageData, uin
     if (!initNetworking()) return nullptr;
 
     CURL* curl = curl_easy_init();
-    if (!curl) {
-        deinitNetworking();
-        return nullptr;
-    }
+    if (!curl) return nullptr;
 
     std::string url = "https://" + api_hostname + "/classify";
     std::string response_string;
+    CurlUserData userData = { &response_string, nullptr };
 
     std::string ip = resolveHost(api_hostname);
     curl_slist* resolve_list = nullptr;
@@ -113,7 +117,7 @@ std::unique_ptr<Pokemon> PokemonApi::classifyImage(const uint8_t* imageData, uin
     curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &userData);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 
     CURLcode res = curl_easy_perform(curl);
@@ -125,29 +129,22 @@ std::unique_ptr<Pokemon> PokemonApi::classifyImage(const uint8_t* imageData, uin
     if (resolve_list) curl_slist_free_all(resolve_list);
     curl_easy_cleanup(curl);
 
-    std::unique_ptr<Pokemon> pokemon = nullptr;
     if (res == CURLE_OK && response_code == 200) {
-        pokemon = std::make_unique<Pokemon>();
-        if (!parseApiResponse(response_string, *pokemon)) {
-            pokemon = nullptr;
-        }
+        auto pokemon = std::make_unique<Pokemon>();
+        if (parseApiResponse(response_string, *pokemon)) return pokemon;
     }
-
-    deinitNetworking();
-    return pokemon;
+    return nullptr;
 }
 
 std::unique_ptr<Pokemon> PokemonApi::getPokemon(const std::string &pokemonName) {
     if (!initNetworking()) return nullptr;
 
     CURL* curl = curl_easy_init();
-    if (!curl) {
-        deinitNetworking();
-        return nullptr;
-    }
+    if (!curl) return nullptr;
 
     std::string url = "https://" + api_hostname + "/pokemon/" + pokemonName;
     std::string response_string;
+    CurlUserData userData = { &response_string, nullptr };
 
     std::string ip = resolveHost(api_hostname);
     struct curl_slist* resolve_list = nullptr;
@@ -164,7 +161,7 @@ std::unique_ptr<Pokemon> PokemonApi::getPokemon(const std::string &pokemonName) 
     curl_easy_setopt(curl, CURLOPT_USERAGENT, USER_AGENT);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &userData);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 
     CURLcode res = curl_easy_perform(curl);
@@ -175,30 +172,64 @@ std::unique_ptr<Pokemon> PokemonApi::getPokemon(const std::string &pokemonName) 
     if (resolve_list) curl_slist_free_all(resolve_list);
     curl_easy_cleanup(curl);
 
-    std::unique_ptr<Pokemon> pokemon = nullptr;
     if (res == CURLE_OK && response_code == 200) {
-        pokemon = std::make_unique<Pokemon>();
-        if (!parseApiResponse(response_string, *pokemon)) {
-            pokemon = nullptr;
-        }
+        auto pokemon = std::make_unique<Pokemon>();
+        if (parseApiResponse(response_string, *pokemon)) return pokemon;
+    }
+    return nullptr;
+}
+
+std::vector<uint8_t> PokemonApi::getPokemonSprite(const std::string &pokemonName, int size) {
+    std::vector<uint8_t> buffer;
+    if (!initNetworking()) return buffer;
+
+    CURL* curl = curl_easy_init();
+    if (!curl) return buffer;
+
+    std::string url = "https://" + api_hostname + "/pokemon/" + pokemonName + "/sprite?size=" + std::to_string(size);
+    CurlUserData userData = { nullptr, &buffer };
+
+    std::string ip = resolveHost(api_hostname);
+    struct curl_slist* resolve_list = nullptr;
+    if (!ip.empty()) {
+        std::string resolve_str = api_hostname + ":443:" + ip;
+        resolve_list = curl_slist_append(NULL, resolve_str.c_str());
+        curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
     }
 
-    deinitNetworking();
-    return pokemon;
+    struct curl_slist* headers = nullptr;
+    headers = curl_slist_append(headers, ("X-API-KEY: " + apiKey).c_str());
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, USER_AGENT);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &userData);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+
+    CURLcode res = curl_easy_perform(curl);
+    long response_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+
+    curl_slist_free_all(headers);
+    if (resolve_list) curl_slist_free_all(resolve_list);
+    curl_easy_cleanup(curl);
+
+    if (res != CURLE_OK || response_code != 200) {
+        buffer.clear();
+    }
+    return buffer;
 }
 
 bool PokemonApi::parseApiResponse(const std::string& json, Pokemon& outResult) {
     json_object *root = json_tokener_parse(json.c_str());
-    if (!root) {
-        return false;
-    }
+    if (!root) return false;
 
     memset(&outResult, 0, sizeof(Pokemon));
 
     json_object *pokemon_obj;
     if (json_object_object_get_ex(root, "pokemon", &pokemon_obj)) {
         strncpy(outResult.name, json_object_get_string(pokemon_obj), MAX_NAME_LENGTH - 1);
-        outResult.name[MAX_NAME_LENGTH - 1] = '\0';
     }
 
     json_object *id_obj;
@@ -209,20 +240,17 @@ bool PokemonApi::parseApiResponse(const std::string& json, Pokemon& outResult) {
     json_object *desc_obj;
     if (json_object_object_get_ex(root, "description", &desc_obj)) {
         strncpy(outResult.description, json_object_get_string(desc_obj), MAX_DESC_LENGTH - 1);
-        outResult.description[MAX_DESC_LENGTH - 1] = '\0';
     }
 
     json_object *types_array;
-    if (json_object_object_get_ex(root, "types", &types_array) && json_object_get_type(types_array) == json_type_array) {
+    if (json_object_object_get_ex(root, "types", &types_array)) {
         int array_len = json_object_array_length(types_array);
         int type_count = 0;
         for (int i = 0; i < array_len && type_count < MAX_TYPES; i++) {
-            json_object *type_obj = json_object_array_get_idx(types_array, i);
-            const char *type_name = json_object_get_string(type_obj);
+            const char *type_name = json_object_get_string(json_object_array_get_idx(types_array, i));
             for (int k = 0; k < 18; k++) {
                 if (strcmp(type_name, type_names[k]) == 0) {
-                    outResult.types[type_count] = static_cast<PokemonType>(k);
-                    type_count++;
+                    outResult.types[type_count++] = static_cast<PokemonType>(k);
                     break;
                 }
             }

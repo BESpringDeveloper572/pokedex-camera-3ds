@@ -56,17 +56,23 @@ public:
     void drawPokemonListBottom(const Pokemon* pokemon_list, int list_size, int selected_index);
     void drawSearchModeBottom(const ApplicationState* app_state);
     void drawViewfinderUI();
+    void drawClassifyingUI();
+    void drawErrorUI();
     void drawCameraPreview();
     void updateCameraTexture(u16* linearBuf);
 
+    void drawPokemonSprite(float x, float y, float size);
+    void updatePokemonSprite(const std::vector<uint8_t>& tiledBytes, int size);
+
 private:
     void initCameraTexture();
+    void initSpriteTexture(int size);
     DisplayManager();
     // Helper functions for drawing
     void drawText(gfxScreen_t screen, int x, int y, const char* text);
     void drawHorizontalLine(gfxScreen_t screen, int y, char style);
     void drawBox(gfxScreen_t screen, int x, int y, int width, int height);
-    const char* getTypeColor(PokemonType type);
+    u32 getTypeColor(PokemonType type);
     const char* getTypeEmoji(PokemonType type);
     const char* getStateLabel(AppState state);
     const char* getStateColor(AppState state);
@@ -75,6 +81,12 @@ private:
     C2D_Image cameraImage;
     Tex3DS_SubTexture cameraSubTex;
     bool cameraTexInitialized;
+
+    C3D_Tex spriteTex;
+    C2D_Image spriteImage;
+    Tex3DS_SubTexture spriteSubTex;
+    bool spriteTexInitialized;
+    int currentSpriteSize;
 };
 
 #endif // DISPLAY_MANAGER_H

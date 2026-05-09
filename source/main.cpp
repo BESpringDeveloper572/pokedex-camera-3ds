@@ -41,18 +41,15 @@ int main(int argc, char *argv[]) {
     app_state.setState(LIST_VIEW);
 
     bool startup = true;
-    int last_selected_index = -1;
 
     while (aptMainLoop()) {
         display.beginFrame();
         input.update();
 
-        AppState previous_state;
+        AppState previous_state = app_state.getCurrentState();
         if (startup) {
-            previous_state = DETAIL_VIEW;
+            previous_state = DETAIL_VIEW; // Force initial "change"
             startup = false;
-        } else {
-            previous_state = app_state.getCurrentState();
         }
 
         // 1. Input handling
@@ -80,11 +77,9 @@ int main(int argc, char *argv[]) {
         if (input.isBPressed()) {
             if (app_state.getCurrentState() == DETAIL_VIEW || app_state.getCurrentState() == SEARCH_MODE || app_state.getCurrentState() == ERROR) {
                 app_state.setState(LIST_VIEW);
-                last_selected_index = -1; // Force redraw
             } else if (app_state.getCurrentState() == VIEWFINDER) {
                 camera.exit();
                 app_state.setState(LIST_VIEW);
-                last_selected_index = -1; // Force redraw
             }
         }
 
@@ -94,15 +89,12 @@ int main(int argc, char *argv[]) {
                 app_state.clearSearchText();
             } else if (app_state.getCurrentState() == SEARCH_MODE) {
                 app_state.setState(LIST_VIEW);
-                last_selected_index = -1; // Force redraw
             }
         }
 
-        if (input.isKeyDown(KEY_Y)) {
-            if (app_state.getCurrentState() == LIST_VIEW || app_state.getCurrentState() == DETAIL_VIEW) {
-                app_state.setState(VIEWFINDER);
-                camera.init();
-            }
+        if (input.isKeyDown(KEY_Y) && (app_state.getCurrentState() == LIST_VIEW || app_state.getCurrentState() == DETAIL_VIEW)) {
+            camera.init();
+            app_state.setState(VIEWFINDER);
         }
 
         if (input.isStartPressed()) break;
@@ -118,11 +110,8 @@ int main(int argc, char *argv[]) {
             
             if (input.isKeyDown(KEY_R)) {
                 app_state.setState(CLASSIFYING);
-                display.clearBottomScreen();
-                printf("\x1b[10;10H" COLOR_YELLOW "Classifying Pokemon..." COLOR_RESET);
-                
+                display.drawClassifyingUI();
                 display.swapBuffers();
-                gspWaitForVBlank();
                 
                 if (auto pokemon = pokemonApi.classifyImage((uint8_t*)cameraFrame, CAM_BUF_SIZE)) {
                     app_state.addPokemon(*pokemon);
@@ -131,67 +120,64 @@ int main(int argc, char *argv[]) {
                     app_state.setState(ERROR);
                 }
                 camera.exit();
+                // We need to start a new frame after a synchronous block like this
                 display.beginFrame();
             }
         }
 
-        // 3. Redraw logic
+        // 3. Main UI Rendering (Every Frame)
         bool state_changed = (previous_state != app_state.getCurrentState());
-        bool selection_changed = (app_state.getCurrentState() == LIST_VIEW && last_selected_index != app_state.getSelectedIndex());
-
         bool should_speak = false;
 
-        if (state_changed || selection_changed) {
-            if (state_changed) {
-                display.clearTopScreen();
-                display.clearBottomScreen();
-            }
+        switch (app_state.getCurrentState()) {
+            case LIST_VIEW:
+                display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
+                display.drawPokemonListBottom(app_state.getPokemonList().data(), app_state.getPokemonCount(), app_state.getSelectedIndex());
+                break;
 
-            switch (app_state.getCurrentState()) {
-                case LIST_VIEW:
-                    display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
-                    display.drawPokemonListBottom(app_state.getPokemonList().data(), app_state.getPokemonCount(), app_state.getSelectedIndex());
-                    last_selected_index = app_state.getSelectedIndex();
-                    break;
-                case DETAIL_VIEW: {
-                    if (state_changed) {
-                        if (auto pokemon = pokemonApi.getPokemon(app_state.getSelectedPokemon()->name)) {
-                            detail = *pokemon;
-                            display.drawPokemonDetailsTop(detail, app_state.getCurrentState());
-                            should_speak = true;
-                        } else {
-                            app_state.setState(ERROR);
-                        }
+            case DETAIL_VIEW:
+                if (state_changed) {
+                    if (auto pokemon = pokemonApi.getPokemon(app_state.getSelectedPokemon()->name)) {
+                        detail = *pokemon;
+                        
+                        // Fetch sprite (using a small 128x128 size)
+                        auto spriteData = pokemonApi.getPokemonSprite(detail.name, 128);
+                        display.updatePokemonSprite(spriteData, 128);
+                        
+                        should_speak = true;
+                    } else {
+                        app_state.setState(ERROR);
                     }
-                    break;
                 }
-                case SEARCH_MODE:
-                    if (state_changed) {
-                        swkbdInit(&swkbd, SWKBD_TYPE_NORMAL, 2, -1);
-                        swkbdSetHintText(&swkbd, "Enter your Pokemon name");
-                        swkbdInputText(&swkbd, keyboardInput.data(), 64);
-                        app_state.setSearchText(keyboardInput.data());
-                        app_state.performSearch();
-                        display.drawPokemonDetailsTop(*app_state.getFilteredSelectedPokemon(), app_state.getCurrentState());
-                        display.drawSearchModeBottom(&app_state);
-                    }
-                    break;
-                case VIEWFINDER:
-                    display.drawViewfinderUI();
-                    break;
-                case CLASSIFYING:
-                    display.clearBottomScreen();
-                    printf("\x1b[10;10H" COLOR_YELLOW "Classifying Pokemon..." COLOR_RESET);
-                    break;
-                case ERROR:
-                    display.clearBottomScreen();
-                    printf("\x1b[10;10H" COLOR_RED "ERROR PAGE!" COLOR_RESET);
-                    printf("\x1b[12;5HPress (B) to return to list");
-                    break;
-            }
+                display.drawPokemonDetailsTop(detail, app_state.getCurrentState());
+                display.drawPokemonSprite(250, 40, 120); // Draw at (250, 40) with 120px display size
+                break;
+
+            case SEARCH_MODE:
+                if (state_changed) {
+                    swkbdInit(&swkbd, SWKBD_TYPE_NORMAL, 2, -1);
+                    swkbdSetHintText(&swkbd, "Enter your Pokemon name");
+                    swkbdInputText(&swkbd, keyboardInput.data(), 64);
+                    app_state.setSearchText(keyboardInput.data());
+                    app_state.performSearch();
+                }
+                display.drawPokemonDetailsTop(*app_state.getFilteredSelectedPokemon(), app_state.getCurrentState());
+                display.drawSearchModeBottom(&app_state);
+                break;
+
+            case VIEWFINDER:
+                display.drawViewfinderUI();
+                break;
+
+            case CLASSIFYING:
+                display.drawClassifyingUI();
+                break;
+
+            case ERROR:
+                display.drawErrorUI();
+                break;
         }
 
-        gspWaitForVBlank();
         display.swapBuffers();
 
         if (should_speak) {
