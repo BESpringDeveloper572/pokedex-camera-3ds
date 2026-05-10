@@ -4,6 +4,7 @@
 #include "pokemon_data.h"
 
 #include <vector>
+#include <algorithm>
 
 // Application states
 enum class AppState {
@@ -13,6 +14,11 @@ enum class AppState {
     CLASSIFYING,
     VIEWFINDER,
     ERROR
+};
+
+enum class SortMode {
+    NUMERICAL,
+    ALPHABETICAL
 };
 
 class ApplicationState {
@@ -30,6 +36,10 @@ public:
     // State management
     AppState getCurrentState() const;
     void setState(AppState new_state);
+
+    // Sorting management
+    SortMode getSortMode() const;
+    void toggleSortMode();
 
     // Pokemon selection
     int getSelectedIndex() const;
@@ -59,8 +69,10 @@ public:
 
 private:
     ApplicationState();
+    void sortList();
 
     AppState current_state;
+    SortMode current_sort_mode;
     int selected_index;
 
     std::vector<Pokemon> pokemon_list;
@@ -75,4 +87,3 @@ private:
 };
 
 #endif // APP_STATE_H
-

@@ -61,8 +61,14 @@ void DisplayManager::drawPokemonDetailsTop(const Pokemon& pokemon, AppState stat
 
 void DisplayManager::drawPokemonListBottom(const Pokemon* pokemon_list, int list_size, int selected_index) {
     auto& r = Renderer::getInstance();
+    auto& app = ApplicationState::getInstance();
+    
     r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(30, 30, 30), false);
     r.drawText(10, 5, 0.6f, Renderer::Color(0, 255, 255), "--- Pokedex List ---", false);
+    
+    // Sort Mode Indicator
+    const char* sortText = (app.getSortMode() == SortMode::NUMERICAL) ? "Sort: # ID" : "Sort: A-Z";
+    r.drawText(220, 5, 0.45f, Renderer::Color(200, 200, 200), sortText, false);
     
     for (int i = 0; i < list_size; i++) {
         float y = 30 + i * 20;
@@ -85,10 +91,6 @@ void DisplayManager::drawSearchModeBottom(const ApplicationState* app_state) {
     char resultsCount[64];
     snprintf(resultsCount, sizeof(resultsCount), "Results found: %d", app_state->getFilteredCount());
     r.drawText(10, 80, 0.5f, Renderer::Color(200, 200, 200), resultsCount, false);
-    
-    if (app_state->getFilteredCount() > 0) {
-        r.drawText(10, 150, 0.5f, Renderer::Color(0, 255, 0), "Press (A) to view selected", false);
-    }
 }
 
 u32 DisplayManager::getTypeColor(PokemonType type) {
@@ -149,8 +151,11 @@ void DisplayManager::drawCameraPreview() {
 
 void DisplayManager::drawViewfinderUI() {
     auto& r = Renderer::getInstance();
-    r.drawText(20, 100, 0.6f, Renderer::Color(255, 255, 255), "Point at a Pokemon and press (R)", false);
-    r.drawText(20, 130, 0.5f, Renderer::Color(255, 255, 0), "Press (B) to Cancel", false);
+    // Background for better visibility
+    r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(0, 0, 0, 180), false);
+    
+    r.drawText(40, 100, 0.6f, Renderer::Color(255, 255, 255), "Point at a Pokemon and press (R)", false);
+    r.drawText(110, 180, 0.55f, Renderer::Color(255, 255, 80), "(B) Cancel", false);
 }
 
 void DisplayManager::drawClassifyingUI() {
@@ -178,8 +183,48 @@ void DisplayManager::drawProgressBar(float x, float y, float width, float height
 void DisplayManager::drawErrorUI() {
     auto& r = Renderer::getInstance();
     r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(50, 0, 0), false);
-    r.drawText(100, 80, 0.8f, Renderer::Color(255, 0, 0), "ERROR PAGE!", false);
-    r.drawText(40, 130, 0.6f, Renderer::Color(255, 255, 255), "Press (B) to return to list", false);
+    r.drawText(95, 80, 0.8f, Renderer::Color(255, 0, 0), "ERROR PAGE!", false);
+    r.drawText(90, 180, 0.55f, Renderer::Color(255, 255, 255), "(B) Back to List", false);
+}
+
+void DisplayManager::drawButtonPrompts(AppState state) {
+    auto& r = Renderer::getInstance();
+    
+    // Only draw the persistent bar for standard navigation states
+    if (state != AppState::LIST_VIEW && state != AppState::DETAIL_VIEW && state != AppState::SEARCH_MODE) {
+        return;
+    }
+
+    // Stylish Bar Design
+    r.drawRect(0, 218, BOTTOM_WIDTH, 2, Renderer::Color(100, 100, 100), false); // Separator line
+    r.drawRect(0, 220, BOTTOM_WIDTH, 20, Renderer::Color(20, 20, 35, 220), false); // Dark translucent background
+    
+    float scale = 0.42f;
+    float y = 222;
+    u32 textColor = Renderer::Color(255, 255, 255);
+    u32 colorA = Renderer::Color(255, 80, 80);   // Red-ish
+    u32 colorB = Renderer::Color(255, 255, 80);  // Yellow-ish
+    u32 colorX = Renderer::Color(80, 150, 255);  // Blue-ish
+    u32 colorY = Renderer::Color(80, 255, 80);   // Green-ish
+
+    switch (state) {
+        case AppState::LIST_VIEW:
+            r.drawText(10,  y, scale, colorA, "(A)", false); r.drawText(35, y, scale, textColor, "Detail", false);
+            r.drawText(95,  y, scale, colorX, "(X)", false); r.drawText(120, y, scale, textColor, "Search", false);
+            r.drawText(185, y, scale, colorY, "(Y)", false); r.drawText(210, y, scale, textColor, "Cam", false);
+            r.drawText(255, y, scale, textColor, "(ZL)", false); r.drawText(285, y, scale, textColor, "Sort", false);
+            break;
+        case AppState::DETAIL_VIEW:
+            r.drawText(10,  y, scale, colorB, "(B)", false); r.drawText(35, y, scale, textColor, "Back", false);
+            r.drawText(95,  y, scale, colorY, "(Y)", false); r.drawText(120, y, scale, textColor, "Cam", false);
+            break;
+        case AppState::SEARCH_MODE:
+            r.drawText(10,  y, scale, colorA, "(A)", false); r.drawText(35, y, scale, textColor, "Select", false);
+            r.drawText(95,  y, scale, colorB, "(B)", false); r.drawText(120, y, scale, textColor, "Cancel", false);
+            break;
+        default:
+            break;
+    }
 }
 
 void DisplayManager::initSpriteTexture(int size) {

@@ -1,7 +1,10 @@
 #include "app_state.h"
 
+#include <string>
+
 ApplicationState::ApplicationState()
     : current_state(AppState::LIST_VIEW),
+      current_sort_mode(SortMode::NUMERICAL),
       selected_index(0),
       search_text_length(0),
       filtered_count(0) {
@@ -19,6 +22,53 @@ AppState ApplicationState::getCurrentState() const {
 
 void ApplicationState::setState(AppState new_state) {
     current_state = new_state;
+}
+
+SortMode ApplicationState::getSortMode() const {
+    return current_sort_mode;
+}
+
+void ApplicationState::toggleSortMode() {
+    // 1. Remember which Pokemon is currently selected (by ID)
+    uint16_t currentId = 0;
+    const Pokemon* selected = getSelectedPokemon();
+    if (selected) {
+        currentId = selected->id;
+    }
+
+    // 2. Toggle the mode
+    if (current_sort_mode == SortMode::NUMERICAL) {
+        current_sort_mode = SortMode::ALPHABETICAL;
+    } else {
+        current_sort_mode = SortMode::NUMERICAL;
+    }
+
+    // 3. Apply the sort
+    sortList();
+
+    // 4. Find where that Pokemon moved to in the new order
+    if (currentId != 0) {
+        for (int i = 0; i < (int)pokemon_list.size(); i++) {
+            if (pokemon_list[i].id == currentId) {
+                selected_index = i;
+                break;
+            }
+        }
+    }
+
+    performSearch(); // Re-index search results based on new sort
+}
+
+void ApplicationState::sortList() {
+    if (current_sort_mode == SortMode::NUMERICAL) {
+        std::sort(pokemon_list.begin(), pokemon_list.end(), [](const Pokemon& a, const Pokemon& b) {
+            return a.id < b.id;
+        });
+    } else {
+        std::sort(pokemon_list.begin(), pokemon_list.end(), [](const Pokemon& a, const Pokemon& b) {
+            return std::string(a.name) < std::string(b.name);
+        });
+    }
 }
 
 int ApplicationState::getSelectedIndex() const {
@@ -79,12 +129,36 @@ void ApplicationState::setPokemonList(const Pokemon* list, int count) {
     for(int i = 0; i < count; i++) {
         pokemon_list.push_back(list[i]);
     }
+    sortList();
     selected_index = 0;
+    performSearch();
 }
 
 void ApplicationState::addPokemon(const Pokemon& pokemon) {
+    // Check if Pokemon already exists in the list (by ID)
+    for (int i = 0; i < (int)pokemon_list.size(); i++) {
+        if (pokemon_list[i].id == pokemon.id) {
+            // Already exists, select it
+            selected_index = i;
+            // Note: Since index is position in list, and list is sorted, 
+            // the ID might have moved if we re-sort.
+            // But if it already existed, it's already in the right sorted spot.
+            return;
+        }
+    }
+    
+    // Doesn't exist, add it
     pokemon_list.push_back(pokemon);
-    selected_index = (int)pokemon_list.size() - 1;
+    sortList(); // Keep the list sorted
+    
+    // Find the new index of the added Pokemon
+    for (int i = 0; i < (int)pokemon_list.size(); i++) {
+        if (pokemon_list[i].id == pokemon.id) {
+            selected_index = i;
+            break;
+        }
+    }
+    performSearch();
 }
 
 const std::vector<Pokemon>& ApplicationState::getPokemonList() const {
@@ -100,7 +174,7 @@ const Pokemon* ApplicationState::getSelectedPokemon() const {
 }
 
 const Pokemon* ApplicationState::getFilteredSelectedPokemon() const {
-    if (selected_index >= getFilteredCount()) {
+    if (selected_index >= getFilteredCount() || selected_index < 0) {
         return nullptr;
     }
     return getPokemon(filtered_indices[selected_index]);
@@ -114,6 +188,13 @@ const Pokemon* ApplicationState::getPokemon(int index) const {
 }
 
 void ApplicationState::performSearch() {
+    // 1. Remember the ID of the currently selected Pokemon
+    uint16_t currentId = 0;
+    const Pokemon* selected = getFilteredSelectedPokemon();
+    if (selected) {
+        currentId = selected->id;
+    }
+
     filtered_count = 0;
     int count = (int)pokemon_list.size();
 
@@ -122,40 +203,41 @@ void ApplicationState::performSearch() {
         for (int i = 0; i < count; i++) {
             filtered_indices[filtered_count++] = i;
         }
-        return;
+    } else {
+        // Search by name (case-insensitive partial match)
+        for (int i = 0; i < count; i++) {
+            const char* name = pokemon_list[i].name;
+            bool matches = true;
+            for (int j = 0; search_text[j] != '\0' && j < search_text_length; j++) {
+                char search_char = (search_text[j] >= 'A' && search_text[j] <= 'Z') ? search_text[j] - 'A' + 'a' : search_text[j];
+                char name_char = (name[j] >= 'A' && name_char <= 'Z') ? name[j] - 'A' + 'a' : name[j];
+                
+                if (search_char != name_char) {
+                    matches = false;
+                    break;
+                }
+            }
+
+            if (matches) {
+                filtered_indices[filtered_count++] = i;
+            }
+        }
     }
 
-    // Search by name (case-insensitive partial match)
-    for (int i = 0; i < count; i++) {
-        const char* name = pokemon_list[i].name;
-
-        // Simple case-insensitive partial match
-        bool matches = true;
-        for (int j = 0; search_text[j] != '\0' && j < search_text_length; j++) {
-            char search_char = search_text[j];
-            // Convert to lowercase for comparison
-            if (search_char >= 'A' && search_char <= 'Z') {
-                search_char = search_char - 'A' + 'a';
-            }
-
-            char name_char = name[j];
-            if (name_char >= 'A' && name_char <= 'Z') {
-                name_char = name_char - 'A' + 'a';
-            }
-
-            if (search_char != name_char) {
-                matches = false;
+    // 2. Try to find the previously selected Pokemon in the new filtered list
+    bool found = false;
+    if (currentId != 0) {
+        for (int i = 0; i < filtered_count; i++) {
+            if (pokemon_list[filtered_indices[i]].id == currentId) {
+                selected_index = i;
+                found = true;
                 break;
             }
         }
-
-        if (matches) {
-            filtered_indices[filtered_count++] = i;
-        }
     }
 
-    // Reset selection if needed
-    if (selected_index >= filtered_count) {
+    // 3. If not found or wasn't selected, default to the top of the list
+    if (!found) {
         selected_index = (filtered_count > 0) ? 0 : -1;
     }
 }

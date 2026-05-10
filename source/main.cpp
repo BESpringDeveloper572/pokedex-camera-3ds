@@ -95,6 +95,10 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        if (input.isKeyDown(KEY_ZL)) {
+            app_state.toggleSortMode();
+        }
+
         if (input.isKeyDown(KEY_Y) && (app_state.getCurrentState() == LIST_VIEW || app_state.getCurrentState() ==
                                        DETAIL_VIEW)) {
             camera.init();
@@ -158,8 +162,7 @@ int main(int argc, char *argv[]) {
         switch (app_state.getCurrentState()) {
             case LIST_VIEW:
                 display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
-                display.drawPokemonListBottom(app_state.getPokemonList().data(), app_state.getPokemonCount(),
-                                              app_state.getSelectedIndex());
+                display.drawPokemonListBottom(app_state.getPokemonList().data(), app_state.getPokemonCount(), app_state.getSelectedIndex());
                 break;
 
             case DETAIL_VIEW:
@@ -204,6 +207,9 @@ int main(int argc, char *argv[]) {
                 display.drawErrorUI();
                 break;
         }
+
+        display.drawButtonPrompts(app_state.getCurrentState());
+
 
         display.swapBuffers();
 

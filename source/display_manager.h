@@ -59,6 +59,7 @@ public:
     void drawClassifyingUI();
     void drawProgressBar(float x, float y, float width, float height, float progress);
     void drawErrorUI();
+    void drawButtonPrompts(AppState state);
     void drawCameraPreview();
     void updateCameraTexture(u16* linearBuf);
 
