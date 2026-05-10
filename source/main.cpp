@@ -145,6 +145,7 @@ int main(int argc, char *argv[]) {
                         svcSleepThread(30000000ULL);
                     }
 
+                    detail = *pokemon;
                     app_state.addPokemon(*pokemon);
                     app_state.setState(DETAIL_VIEW);
                 } else {
@@ -161,25 +162,21 @@ int main(int argc, char *argv[]) {
 
         switch (app_state.getCurrentState()) {
             case LIST_VIEW:
-                display.drawPokemonDetailsTop(*app_state.getSelectedPokemon(), app_state.getCurrentState());
+                display.drawPokemonDetails(*app_state.getSelectedPokemon());
                 display.drawPokemonListBottom(app_state.getPokemonList().data(), app_state.getPokemonCount(), app_state.getSelectedIndex());
                 break;
 
             case DETAIL_VIEW:
                 if (state_changed) {
-                    if (auto pokemon = pokemonApi.getPokemon(app_state.getSelectedPokemon()->name)) {
-                        detail = *pokemon;
-
-                        // Fetch sprite (using a small 128x128 size)
-                        auto spriteData = pokemonApi.getPokemonSprite(detail.name, 128);
-                        display.updatePokemonSprite(spriteData, 128);
-
-                        should_speak = true;
-                    } else {
-                        app_state.setState(ERROR);
+                    if (previous_state == LIST_VIEW) {
+                        detail = *pokemonApi.getPokemon(app_state.getSelectedPokemon()->name);
                     }
+                    // Fetch sprite (using a small 128x128 size)
+                    auto spriteData = pokemonApi.getPokemonSprite(detail.name, 128);
+                    display.updatePokemonSprite(spriteData, 128);
+                    should_speak = true;
                 }
-                display.drawPokemonDetailsTop(detail, app_state.getCurrentState());
+                display.drawPokemonDetails(detail);
                 display.drawPokemonSprite(250, 40, 120); // Draw at (250, 40) with 120px display size
                 break;
 
@@ -190,11 +187,14 @@ int main(int argc, char *argv[]) {
                     swkbdInputText(&swkbd, keyboardInput.data(), 64);
                     app_state.setSearchText(keyboardInput.data());
                     app_state.performSearch();
+                    if (auto pokemon = pokemonApi.getPokemon(detail.name)) {
+                        detail = *pokemon;
+                        app_state.setState(DETAIL_VIEW);
+                    } else {
+                        app_state.setState(ERROR);
+                    }
                 }
-                display.drawPokemonDetailsTop(*app_state.getFilteredSelectedPokemon(), app_state.getCurrentState());
-                display.drawSearchModeBottom(&app_state);
                 break;
-
             case VIEWFINDER:
                 display.drawViewfinderUI();
                 break;

@@ -29,7 +29,7 @@ void DisplayManager::beginFrame() {
 
 // --- Rendering Implementation ---
 
-void DisplayManager::drawPokemonDetailsTop(const Pokemon& pokemon, AppState state) {
+void DisplayManager::drawPokemonDetails(const Pokemon &pokemon) {
     auto& r = Renderer::getInstance();
     
     u32 color = Renderer::Color(100, 100, 100);

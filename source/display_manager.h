@@ -52,7 +52,7 @@ public:
     void swapBuffers();
 
     // Rendering functions with state awareness
-    void drawPokemonDetailsTop(const Pokemon& pokemon, AppState state);
+    void drawPokemonDetails(const Pokemon &pokemon);
     void drawPokemonListBottom(const Pokemon* pokemon_list, int list_size, int selected_index);
     void drawSearchModeBottom(const ApplicationState* app_state);
     void drawViewfinderUI();
