@@ -44,29 +44,31 @@ void DisplayManager::drawPokemonDetails(const Pokemon &pokemon) {
     r.drawText(10, 10, 0.6f, Renderer::Color(255, 255, 255), idName, true);
     
     r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(30, 30, 30), false);
-    r.drawText(10, 10, 0.5f, Renderer::Color(255, 255, 255), pokemon.species, false);
+    r.drawText(10, 5, 0.5f, Renderer::Color(255, 255, 255), pokemon.species, false);
 
-    // Height conversion: dm to ft' in"
+    // Height/Weight conversion
     float totalInches = pokemon.height * 3.93701f;
     int roundedInches = static_cast<int>(totalInches + 0.5f);
     int feet = roundedInches / 12;
     int inches = roundedInches % 12;
-    char heightStr[32];
-    snprintf(heightStr, sizeof(heightStr), "Ht: %d' %02d\"", feet, inches);
-    r.drawText(220, 10, 0.5f, Renderer::Color(200, 200, 200), heightStr, false);
+    float lbs = pokemon.weight * 0.220462f;
+
+    char physicalStr[64];
+    snprintf(physicalStr, sizeof(physicalStr), "Ht: %d' %02d\"  Wt: %.1f lbs", feet, inches, lbs);
+    r.drawText(10, 25, 0.45f, Renderer::Color(180, 180, 180), physicalStr, false);
     
-    r.drawText(10, 30, 0.5f, Renderer::Color(200, 200, 200), "Types:", false);
+    r.drawText(10, 45, 0.5f, Renderer::Color(200, 200, 200), "Types:", false);
     
     float typeX = 70;
     for(int i=0; i<pokemon.type_count; i++) {
         u32 typeColor = getTypeColor(pokemon.types[i]);
-        r.drawRect(typeX, 30, 80, 20, typeColor, false);
-        r.drawText(typeX + 5, 32, 0.4f, Renderer::Color(255, 255, 255), type_names[static_cast<int>(pokemon.types[i])], false);
+        r.drawRect(typeX, 45, 80, 20, typeColor, false);
+        r.drawText(typeX + 5, 47, 0.4f, Renderer::Color(255, 255, 255), type_names[static_cast<int>(pokemon.types[i])], false);
         typeX += 90;
     }
     
-    r.drawText(10, 60, 0.5f, Renderer::Color(255, 255, 255), "Description:", false);
-    r.drawTextWrapped(10, 80, 0.45f, 300.0f, Renderer::Color(200, 200, 200), pokemon.description, false);
+    r.drawText(10, 75, 0.5f, Renderer::Color(255, 255, 255), "Description:", false);
+    r.drawTextWrapped(10, 95, 0.45f, 300.0f, Renderer::Color(200, 200, 200), pokemon.description, false);
 }
 
 void DisplayManager::drawPokemonListBottom(const Pokemon* pokemon_list, int list_size, int selected_index) {

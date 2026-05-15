@@ -44,6 +44,8 @@ struct Pokemon {
     uint16_t id;                                    // 2 bytes
     char name[MAX_NAME_LENGTH];                     // 20 bytes
     char species[MAX_SPECIES_LENGTH];                     // 20 bytes
+    uint16_t height;                                // 2 bytes (in decimetres)
+    uint16_t weight;                                // 2 bytes (in hectograms)
     std::array<PokemonType, MAX_TYPES> types;      // 2 bytes
     uint8_t type_count;                             // 1 byte (1 or 2 types)
     char description[MAX_DESC_LENGTH];              // 100 bytes

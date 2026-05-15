@@ -258,6 +258,15 @@ bool PokemonApi::parseApiResponse(const std::string& json, Pokemon& outResult) {
         outResult.id = json_object_get_int(id_obj);
     }
 
+    json_object *height_obj;
+    if (json_object_object_get_ex(root, "height", &height_obj)) {
+        outResult.height = json_object_get_int(height_obj);
+    }
+
+    if (json_object_object_get_ex(root, "weight", &height_obj)) {
+        outResult.weight = json_object_get_int(height_obj);
+    }
+
     json_object *desc_obj;
     if (json_object_object_get_ex(root, "description", &desc_obj)) {
         strncpy(outResult.description, json_object_get_string(desc_obj), MAX_DESC_LENGTH - 1);
