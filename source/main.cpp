@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
             case DETAIL_VIEW:
                 if (state_changed) {
                     if (previous_state == LIST_VIEW) {
-                        detail = *pokemonApi.getPokemon(app_state.getSelectedPokemon()->name);
+                        detail = *app_state.getSelectedPokemon();
                     }
                     // Fetch sprite (using a small 128x128 size)
                     auto spriteData = pokemonApi.getPokemonSprite(detail.name, 128);
