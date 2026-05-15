@@ -41,6 +41,18 @@ constexpr size_t SOC_BUFFERSIZE = 0x100000;
 
 PokemonApi::PokemonApi(const std::string& api_hostname, const std::string& apiKey)
     : api_hostname(api_hostname), apiKey(apiKey) {
+    
+    // Determine if IP address
+    std::string ip_part = api_hostname;
+    size_t colonPos = api_hostname.find(':');
+    if (colonPos != std::string::npos) {
+        ip_part = api_hostname.substr(0, colonPos);
+    }
+    struct in_addr addr;
+    is_ip_address = (inet_pton(AF_INET, ip_part.c_str(), &addr) == 1);
+
+    // Set base URL
+    api_url = (is_ip_address ? "http://" : "https://") + api_hostname;
 }
 
 PokemonApi::~PokemonApi() {
@@ -89,16 +101,18 @@ std::unique_ptr<Pokemon> PokemonApi::classifyImage(const uint8_t* imageData, uin
     CURL* curl = curl_easy_init();
     if (!curl) return nullptr;
 
-    std::string url = "https://" + api_hostname + "/classify";
+    std::string url = api_url + "/classify";
     std::string response_string;
     CurlUserData userData = { &response_string, nullptr };
 
-    std::string ip = resolveHost(api_hostname);
     curl_slist* resolve_list = nullptr;
-    if (!ip.empty()) {
-        std::string resolve_str = api_hostname + ":443:" + ip;
-        resolve_list = curl_slist_append(NULL, resolve_str.c_str());
-        curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
+    if (!is_ip_address) {
+        std::string ip = resolveHost(api_hostname);
+        if (!ip.empty()) {
+            std::string resolve_str = api_hostname + ":443:" + ip;
+            resolve_list = curl_slist_append(NULL, resolve_str.c_str());
+            curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
+        }
     }
 
     curl_mime* mime = curl_mime_init(curl);
@@ -141,16 +155,18 @@ std::unique_ptr<Pokemon> PokemonApi::getPokemon(const std::string &pokemonName) 
     CURL* curl = curl_easy_init();
     if (!curl) return nullptr;
 
-    std::string url = "https://" + api_hostname + "/pokemon/" + pokemonName;
+    std::string url = api_url + "/pokemon/" + pokemonName;
     std::string response_string;
     CurlUserData userData = { &response_string, nullptr };
 
-    std::string ip = resolveHost(api_hostname);
-    struct curl_slist* resolve_list = nullptr;
-    if (!ip.empty()) {
-        std::string resolve_str = api_hostname + ":443:" + ip;
-        resolve_list = curl_slist_append(NULL, resolve_str.c_str());
-        curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
+    curl_slist* resolve_list = nullptr;
+    if (!is_ip_address) {
+        std::string ip = resolveHost(api_hostname);
+        if (!ip.empty()) {
+            std::string resolve_str = api_hostname + ":443:" + ip;
+            resolve_list = curl_slist_append(NULL, resolve_str.c_str());
+            curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
+        }
     }
 
     struct curl_slist* headers = nullptr;
@@ -185,15 +201,17 @@ std::vector<uint8_t> PokemonApi::getPokemonSprite(const std::string &pokemonName
     CURL* curl = curl_easy_init();
     if (!curl) return buffer;
 
-    std::string url = "https://" + api_hostname + "/pokemon/" + pokemonName + "/sprite?size=" + std::to_string(size);
+    std::string url = api_url + "/pokemon/" + pokemonName + "/sprite?size=" + std::to_string(size);
     CurlUserData userData = { nullptr, &buffer };
 
-    std::string ip = resolveHost(api_hostname);
-    struct curl_slist* resolve_list = nullptr;
-    if (!ip.empty()) {
-        std::string resolve_str = api_hostname + ":443:" + ip;
-        resolve_list = curl_slist_append(NULL, resolve_str.c_str());
-        curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
+    curl_slist* resolve_list = nullptr;
+    if (!is_ip_address) {
+        std::string ip = resolveHost(api_hostname);
+        if (!ip.empty()) {
+            std::string resolve_str = api_hostname + ":443:" + ip;
+            resolve_list = curl_slist_append(NULL, resolve_str.c_str());
+            curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
+        }
     }
 
     struct curl_slist* headers = nullptr;

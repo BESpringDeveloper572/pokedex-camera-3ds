@@ -31,6 +31,8 @@ private:
     PokemonApi(const std::string &api_hostname, const std::string &apiKey);
     std::string api_hostname;
     std::string apiKey;
+    std::string api_url;
+    bool is_ip_address;
 
     // Transient networking initialization
     bool initNetworking();
