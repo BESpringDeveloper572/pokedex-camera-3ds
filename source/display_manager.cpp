@@ -43,20 +43,22 @@ void DisplayManager::drawPokemonDetails(const Pokemon &pokemon) {
     snprintf(idName, sizeof(idName), "#%03d %s", pokemon.id, pokemon.name);
     r.drawText(10, 10, 0.6f, Renderer::Color(255, 255, 255), idName, true);
     
-    // Bottom Screen UI
     r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(30, 30, 30), false);
-    r.drawText(10, 10, 0.5f, Renderer::Color(200, 200, 200), "Types:", false);
+    r.drawText(10, 10, 0.5f, Renderer::Color(200, 200, 200), "Species:", false);
+    r.drawText(80, 10, 0.5f, Renderer::Color(255, 255, 255), pokemon.species, false);
+    
+    r.drawText(10, 30, 0.5f, Renderer::Color(200, 200, 200), "Types:", false);
     
     float typeX = 70;
     for(int i=0; i<pokemon.type_count; i++) {
         u32 typeColor = getTypeColor(pokemon.types[i]);
-        r.drawRect(typeX, 10, 80, 20, typeColor, false);
-        r.drawText(typeX + 5, 12, 0.4f, Renderer::Color(255, 255, 255), type_names[static_cast<int>(pokemon.types[i])], false);
+        r.drawRect(typeX, 30, 80, 20, typeColor, false);
+        r.drawText(typeX + 5, 32, 0.4f, Renderer::Color(255, 255, 255), type_names[static_cast<int>(pokemon.types[i])], false);
         typeX += 90;
     }
     
-    r.drawText(10, 40, 0.5f, Renderer::Color(255, 255, 255), "Description:", false);
-    r.drawTextWrapped(10, 60, 0.45f, 300.0f, Renderer::Color(200, 200, 200), pokemon.description, false);
+    r.drawText(10, 60, 0.5f, Renderer::Color(255, 255, 255), "Description:", false);
+    r.drawTextWrapped(10, 80, 0.45f, 300.0f, Renderer::Color(200, 200, 200), pokemon.description, false);
 }
 
 void DisplayManager::drawPokemonListBottom(const Pokemon* pokemon_list, int list_size, int selected_index) {
@@ -69,6 +71,11 @@ void DisplayManager::drawPokemonListBottom(const Pokemon* pokemon_list, int list
     // Sort Mode Indicator
     const char* sortText = (app.getSortMode() == SortMode::NUMERICAL) ? "Sort: # ID" : "Sort: A-Z";
     r.drawText(220, 5, 0.45f, Renderer::Color(200, 200, 200), sortText, false);
+    
+    // Scanned Counter
+    char scannedCount[32];
+    snprintf(scannedCount, sizeof(scannedCount), "Scanned: %d", app.getPokemonCount());
+    r.drawText(220, 22, 0.45f, Renderer::Color(0, 255, 0), scannedCount, false);
     
     for (int i = 0; i < list_size; i++) {
         float y = 30 + i * 20;
@@ -164,6 +171,17 @@ void DisplayManager::drawClassifyingUI() {
     r.drawText(60, 100, 0.7f, Renderer::Color(255, 255, 0), "Classifying Pokemon...", false);
 }
 
+void DisplayManager::drawEmptyListUI() {
+    auto& r = Renderer::getInstance();
+    // Top Screen
+    r.drawRect(0, 0, TOP_WIDTH, TOP_HEIGHT, Renderer::Color(20, 20, 20), true);
+    r.drawText(90, 100, 0.7f, Renderer::Color(150, 150, 150), "Pokedex Empty", true);
+
+    // Bottom Screen
+    r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(30, 30, 30), false);
+    r.drawText(20, 100, 0.55f, Renderer::Color(255, 255, 255), "Press Y to start analyzing Pokemon", false);
+}
+
 void DisplayManager::drawProgressBar(float x, float y, float width, float height, float progress) {
     auto& r = Renderer::getInstance();
     if (progress < 0.0f) progress = 0.0f;
@@ -209,10 +227,14 @@ void DisplayManager::drawButtonPrompts(AppState state) {
 
     switch (state) {
         case AppState::LIST_VIEW:
-            r.drawText(10,  y, scale, colorA, "(A)", false); r.drawText(35, y, scale, textColor, "Detail", false);
-            r.drawText(95,  y, scale, colorX, "(X)", false); r.drawText(120, y, scale, textColor, "Search", false);
-            r.drawText(185, y, scale, colorY, "(Y)", false); r.drawText(210, y, scale, textColor, "Cam", false);
-            r.drawText(255, y, scale, textColor, "(ZL)", false); r.drawText(285, y, scale, textColor, "Sort", false);
+            if (ApplicationState::getInstance().getPokemonCount() > 0) {
+                r.drawText(10,  y, scale, colorA, "(A)", false); r.drawText(35, y, scale, textColor, "Detail", false);
+                r.drawText(95,  y, scale, colorX, "(X)", false); r.drawText(120, y, scale, textColor, "Search", false);
+                r.drawText(185, y, scale, colorY, "(Y)", false); r.drawText(210, y, scale, textColor, "Cam", false);
+                r.drawText(255, y, scale, textColor, "(ZL)", false); r.drawText(285, y, scale, textColor, "Sort", false);
+            } else {
+                r.drawText(110, y, scale, colorY, "(Y)", false); r.drawText(135, y, scale, textColor, "Analyze", false);
+            }
             break;
         case AppState::DETAIL_VIEW:
             r.drawText(10,  y, scale, colorB, "(B)", false); r.drawText(35, y, scale, textColor, "Back", false);

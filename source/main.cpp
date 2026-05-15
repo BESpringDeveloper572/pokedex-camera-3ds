@@ -9,7 +9,6 @@
 #include "pokemon_api.h"
 #include "text_to_speech.h"
 #include "camera.h"
-#include "secrets.h"
 
 using std::string;
 using enum AppState;
@@ -29,18 +28,6 @@ int main(int argc, char *argv[]) {
     Pokemon detail{};
     auto cameraFrame = (u16 *) memalign(0x1000, CAM_BUF_SIZE);
 
-    // Create test Pokemon data
-    Pokemon test_pokemon[] = {
-        {
-            1, "Bulbasaur", {PokemonType::GRASS, PokemonType::POISON}, 2,
-            "A small quadrupedal Pokemon with a bulb on its back."
-        },
-        {4, "Charmander", {PokemonType::FIRE}, 1, "A small lizard Pokemon that breathes fire."},
-        {7, "Squirtle", {PokemonType::WATER}, 1, "A small turtle Pokemon with a hard shell."},
-        {25, "Pikachu", {PokemonType::ELECTRIC}, 1, "An electric mouse Pokemon that shoots lightning."}
-    };
-
-    app_state.setPokemonList(test_pokemon, 4);
     app_state.setState(LIST_VIEW);
 
     bool startup = true;
@@ -71,9 +58,12 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        if (input.isAPressed() && (app_state.getCurrentState() == LIST_VIEW || app_state.getCurrentState() ==
-                                   SEARCH_MODE)) {
-            app_state.setState(DETAIL_VIEW);
+        if (input.isAPressed()) {
+            if (app_state.getCurrentState() == LIST_VIEW && app_state.getPokemonCount() > 0) {
+                app_state.setState(DETAIL_VIEW);
+            } else if (app_state.getCurrentState() == SEARCH_MODE && app_state.getFilteredCount() > 0) {
+                app_state.setState(DETAIL_VIEW);
+            }
         }
 
         if (input.isBPressed()) {
@@ -162,8 +152,12 @@ int main(int argc, char *argv[]) {
 
         switch (app_state.getCurrentState()) {
             case LIST_VIEW:
-                display.drawPokemonDetails(*app_state.getSelectedPokemon());
-                display.drawPokemonListBottom(app_state.getPokemonList().data(), app_state.getPokemonCount(), app_state.getSelectedIndex());
+                if (app_state.getPokemonCount() > 0) {
+                    display.drawPokemonDetails(*app_state.getSelectedPokemon());
+                    display.drawPokemonListBottom(app_state.getPokemonList().data(), app_state.getPokemonCount(), app_state.getSelectedIndex());
+                } else {
+                    display.drawEmptyListUI();
+                }
                 break;
 
             case DETAIL_VIEW:
@@ -209,7 +203,6 @@ int main(int argc, char *argv[]) {
         }
 
         display.drawButtonPrompts(app_state.getCurrentState());
-
 
         display.swapBuffers();
 
