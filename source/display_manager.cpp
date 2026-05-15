@@ -45,6 +45,15 @@ void DisplayManager::drawPokemonDetails(const Pokemon &pokemon) {
     
     r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(30, 30, 30), false);
     r.drawText(10, 10, 0.5f, Renderer::Color(255, 255, 255), pokemon.species, false);
+
+    // Height conversion: dm to ft' in"
+    float totalInches = pokemon.height * 3.93701f;
+    int roundedInches = static_cast<int>(totalInches + 0.5f);
+    int feet = roundedInches / 12;
+    int inches = roundedInches % 12;
+    char heightStr[32];
+    snprintf(heightStr, sizeof(heightStr), "Ht: %d' %02d\"", feet, inches);
+    r.drawText(220, 10, 0.5f, Renderer::Color(200, 200, 200), heightStr, false);
     
     r.drawText(10, 30, 0.5f, Renderer::Color(200, 200, 200), "Types:", false);
     
