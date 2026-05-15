@@ -46,6 +46,7 @@ private:
     TextToSpeech();
 
     void processText(const char* text);
+    std::string fixPronunciation(const std::string& text);
     ndspWaveBuf waveBuf{};
     cst_wave *fliteWave{};
     cst_voice *voice{};

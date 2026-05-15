@@ -4,7 +4,9 @@
 
 #include "text_to_speech.h"
 
-#include <utility>
+#include <algorithm>
+#include <cctype>
+#include <vector>
 
 TextToSpeech::TextToSpeech() {
     voice = register_cmu_us_kal(nullptr);
@@ -18,22 +20,64 @@ TextToSpeech::~TextToSpeech() {
 void TextToSpeech::sayPokemonInformation(const Pokemon &pokemon) {
     processText(pokemon.name);
     std::ostringstream oss;
+    oss << "The ";
+    oss << pokemon.species;
+    std::string speciesDescription = oss.str();
+    processText(speciesDescription.c_str());
+
+    oss.str("");
+    oss.clear();
+
+    oss << "A ";
     oss << type_names[static_cast<int>(pokemon.types.at(0))];
     if (pokemon.type_count > 1) {
             oss << "and ";
             oss << type_names[static_cast<int>(pokemon.types.at(1))];
     }
-    oss << " Pokemon";
+    oss << " Type";
     std::string typeDescription = oss.str();
     processText(typeDescription.c_str());
     processText(pokemon.description);
+}
+
+std::string TextToSpeech::fixPronunciation(const std::string& text) {
+    std::string result = text;
+    
+    // We need to handle both "Pokemon" and "Pokémon" (with accent)
+    // and potentially different encodings, but let's start with basic ASCII
+    // and common UTF-8 for é
+    
+    std::vector<std::string> targets = {"Pokemon", "Pok\xc3\xa9mon"}; 
+    std::string replacement = "Poh kay mawn";
+
+    for (const auto& target : targets) {
+        size_t pos = 0;
+        while (true) {
+            auto it = std::search(
+                result.begin() + pos, result.end(),
+                target.begin(), target.end(),
+                [](unsigned char ch1, unsigned char ch2) { 
+                    return std::tolower(ch1) == std::tolower(ch2); 
+                }
+            );
+            
+            if (it == result.end()) break;
+            
+            pos = std::distance(result.begin(), it);
+            result.replace(pos, target.length(), replacement);
+            pos += replacement.length();
+        }
+    }
+    
+    return result;
 }
 
 void TextToSpeech::processText(const char* text) {
     static int channel = 0;
     int dataSize;
 
-    fliteWave = flite_text_to_wave(text, voice);
+    std::string fixedText = fixPronunciation(text);
+    fliteWave = flite_text_to_wave(fixedText.c_str(), voice);
     dataSize = fliteWave->num_samples * fliteWave->num_channels * 2;
 
     linearFree(samples);
