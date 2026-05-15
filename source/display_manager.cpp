@@ -44,8 +44,7 @@ void DisplayManager::drawPokemonDetails(const Pokemon &pokemon) {
     r.drawText(10, 10, 0.6f, Renderer::Color(255, 255, 255), idName, true);
     
     r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(30, 30, 30), false);
-    r.drawText(10, 10, 0.5f, Renderer::Color(200, 200, 200), "Species:", false);
-    r.drawText(80, 10, 0.5f, Renderer::Color(255, 255, 255), pokemon.species, false);
+    r.drawText(10, 10, 0.5f, Renderer::Color(255, 255, 255), pokemon.species, false);
     
     r.drawText(10, 30, 0.5f, Renderer::Color(200, 200, 200), "Types:", false);
     
