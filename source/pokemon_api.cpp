@@ -249,6 +249,11 @@ bool PokemonApi::parseApiResponse(const std::string& json, Pokemon& outResult) {
         strncpy(outResult.name, json_object_get_string(pokemon_obj), MAX_NAME_LENGTH - 1);
     }
 
+    json_object *pron_obj;
+    if (json_object_object_get_ex(root, "pronunciation", &pron_obj)) {
+        strncpy(outResult.pronunciation, json_object_get_string(pron_obj), MAX_PRONUNCIATION_LENGTH - 1);
+    }
+
     if (json_object_object_get_ex(root, "species", &pokemon_obj)) {
         strncpy(outResult.species, json_object_get_string(pokemon_obj), MAX_SPECIES_LENGTH - 1);
     }

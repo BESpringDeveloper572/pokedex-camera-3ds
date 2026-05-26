@@ -7,6 +7,7 @@
 
 // Maximum string lengths for compact storage on 3DS
 constexpr uint16_t MAX_NAME_LENGTH = 20;
+constexpr uint16_t MAX_PRONUNCIATION_LENGTH = 60;
 constexpr uint16_t MAX_SPECIES_LENGTH = 40;
 constexpr uint16_t MAX_DESC_LENGTH = 1024;
 constexpr uint8_t MAX_TYPES = 2;
@@ -43,13 +44,14 @@ enum class PokemonType : uint8_t {
 struct Pokemon {
     uint16_t id;                                    // 2 bytes
     char name[MAX_NAME_LENGTH];                     // 20 bytes
+    char pronunciation[MAX_PRONUNCIATION_LENGTH];   // 60 bytes
     char species[MAX_SPECIES_LENGTH];                     // 20 bytes
     uint16_t height;                                // 2 bytes (in decimetres)
     uint16_t weight;                                // 2 bytes (in hectograms)
     std::array<PokemonType, MAX_TYPES> types;      // 2 bytes
     uint8_t type_count;                             // 1 byte (1 or 2 types)
     char description[MAX_DESC_LENGTH];              // 100 bytes
-    // Total: ~125 bytes per Pokemon
+    // Total: ~185 bytes per Pokemon
     bool operator==(const Pokemon & other) const {
         return strcmp(name, other.name) == 0;
     }

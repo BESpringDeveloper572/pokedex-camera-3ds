@@ -18,7 +18,11 @@ TextToSpeech::~TextToSpeech() {
 }
 
 void TextToSpeech::sayPokemonInformation(const Pokemon &pokemon) {
-    processText(pokemon.name);
+    if (strlen(pokemon.pronunciation) > 0) {
+        processText(pokemon.pronunciation);
+    } else {
+        processText(pokemon.name);
+    }
     std::ostringstream oss;
     oss << "The ";
     oss << pokemon.species;
