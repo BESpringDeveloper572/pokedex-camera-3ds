@@ -35,6 +35,9 @@ A high-performance graphical Pokedex application for Nintendo 3DS built with **l
    - Save fetched Pokémon and sprites to the SD card.
    - Implement an offline mode for use without Wi-Fi.
 
+3. **Network Resilience**
+   - Add connection timeouts for all network requests to prevent hanging during API outages.
+
 ### Additional Features (FUTURE)
 - [ ] Pokemon stats display (HP, Attack, Defense, etc.)
 - [ ] Evolution chains and type effectiveness.

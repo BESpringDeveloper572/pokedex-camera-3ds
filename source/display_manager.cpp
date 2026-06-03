@@ -32,67 +32,134 @@ void DisplayManager::beginFrame() {
 void DisplayManager::drawPokemonDetails(const Pokemon &pokemon) {
     auto& r = Renderer::getInstance();
     
-    u32 color = Renderer::Color(100, 100, 100);
-    if (pokemon.type_count > 0) {
-        color = getTypeColor(pokemon.types[0]);
-    }
+    // Clear screen to premium slate
+    r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(18, 18, 28, 255), false);
     
-    // Top Screen UI
-    r.drawRect(0, 0, TOP_WIDTH, 40, color, true);
-    char idName[64];
-    snprintf(idName, sizeof(idName), "#%03d %s", pokemon.id, pokemon.name);
-    r.drawText(10, 10, 0.6f, Renderer::Color(255, 255, 255), idName, true);
+    // Sleek header bar
+    r.drawRect(0, 0, BOTTOM_WIDTH, 30, Renderer::Color(25, 25, 38, 255), false);
+    r.drawRect(0, 30, BOTTOM_WIDTH, 2, Renderer::Color(50, 50, 70, 255), false);
+    r.drawText(10, 6, 0.55f, Renderer::Color(255, 255, 255), "POKEDEX DATABASE", false);
     
-    r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(30, 30, 30), false);
-    r.drawText(10, 5, 0.5f, Renderer::Color(255, 255, 255), pokemon.species, false);
-
-    // Height/Weight conversion
+    // Species tag in header
+    r.drawText(180, 7, 0.45f, Renderer::Color(170, 175, 195), pokemon.species, false);
+    
+    // Height/Weight conversions
     float totalInches = pokemon.height * 3.93701f;
     int roundedInches = static_cast<int>(totalInches + 0.5f);
     int feet = roundedInches / 12;
     int inches = roundedInches % 12;
     float lbs = pokemon.weight * 0.220462f;
-
-    char physicalStr[64];
-    snprintf(physicalStr, sizeof(physicalStr), "Ht: %d' %02d\"  Wt: %.1f lbs", feet, inches, lbs);
-    r.drawText(10, 25, 0.45f, Renderer::Color(180, 180, 180), physicalStr, false);
     
-    r.drawText(10, 45, 0.5f, Renderer::Color(200, 200, 200), "Types:", false);
+    char hVal[32];
+    snprintf(hVal, sizeof(hVal), "%d' %02d\"  (%d.%dm)", feet, inches, pokemon.height / 10, pokemon.height % 10);
+    char wVal[32];
+    snprintf(wVal, sizeof(wVal), "%.1f lbs  (%.1f kg)", lbs, pokemon.weight / 10.0f);
     
-    float typeX = 70;
-    for(int i=0; i<pokemon.type_count; i++) {
-        u32 typeColor = getTypeColor(pokemon.types[i]);
-        r.drawRect(typeX, 45, 80, 20, typeColor, false);
-        r.drawText(typeX + 5, 47, 0.4f, Renderer::Color(255, 255, 255), type_names[static_cast<int>(pokemon.types[i])], false);
-        typeX += 90;
-    }
+    // 1. Height Box
+    r.drawRectOutline(8, 38, 148, 48, 1.0f, Renderer::Color(45, 45, 60, 255), false);
+    r.drawRect(9, 39, 146, 46, Renderer::Color(24, 24, 36, 255), false);
+    r.drawText(14, 43, 0.32f, Renderer::Color(140, 140, 160), "HEIGHT PARAMETERS", false);
+    r.drawText(14, 59, 0.44f, Renderer::Color(255, 255, 255), hVal, false);
     
-    r.drawText(10, 75, 0.5f, Renderer::Color(255, 255, 255), "Description:", false);
-    r.drawTextWrapped(10, 95, 0.45f, 300.0f, Renderer::Color(200, 200, 200), pokemon.description, false);
+    // 2. Weight Box
+    r.drawRectOutline(164, 38, 148, 48, 1.0f, Renderer::Color(45, 45, 60, 255), false);
+    r.drawRect(165, 39, 146, 46, Renderer::Color(24, 24, 36, 255), false);
+    r.drawText(170, 43, 0.32f, Renderer::Color(140, 140, 160), "WEIGHT PARAMETERS", false);
+    r.drawText(170, 59, 0.44f, Renderer::Color(255, 255, 255), wVal, false);
+    
+    // 3. Description Panel
+    r.drawRectOutline(8, 92, 304, 118, 1.0f, Renderer::Color(45, 45, 60, 255), false);
+    r.drawRect(9, 93, 302, 116, Renderer::Color(22, 22, 32, 255), false);
+    
+    // Description Divider
+    r.drawRect(9, 113, 302, 1, Renderer::Color(45, 45, 60, 255), false);
+    r.drawText(14, 97, 0.38f, Renderer::Color(150, 150, 170), "POKEDEX ANALYZER PROFILE", false);
+    
+    // Audio Readout Pill
+    r.drawRect(198, 96, 102, 14, Renderer::Color(25, 60, 120, 200), false);
+    r.drawRectOutline(198, 96, 102, 14, 1.0f, Renderer::Color(60, 120, 255, 255), false);
+    r.drawText(204, 99, 0.28f, Renderer::Color(255, 255, 255), "🎤 AUDIO PLAYBACK", false);
+    
+    // Description text body wrapped nicely
+    r.drawTextWrapped(14, 120, 0.42f, 290.0f, Renderer::Color(205, 210, 225), pokemon.description, false);
 }
 
 void DisplayManager::drawPokemonListBottom(const Pokemon* pokemon_list, int list_size, int selected_index) {
     auto& r = Renderer::getInstance();
     auto& app = ApplicationState::getInstance();
     
-    r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(30, 30, 30), false);
-    r.drawText(10, 5, 0.6f, Renderer::Color(0, 255, 255), "--- Pokedex List ---", false);
+    // Clear screen to premium slate
+    r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(18, 18, 28, 255), false);
     
-    // Sort Mode Indicator
-    const char* sortText = (app.getSortMode() == SortMode::NUMERICAL) ? "Sort: # ID" : "Sort: A-Z";
-    r.drawText(220, 5, 0.45f, Renderer::Color(200, 200, 200), sortText, false);
+    // Sleek header bar
+    r.drawRect(0, 0, BOTTOM_WIDTH, 30, Renderer::Color(25, 25, 38, 255), false);
+    r.drawRect(0, 30, BOTTOM_WIDTH, 2, Renderer::Color(50, 50, 70, 255), false);
     
-    // Scanned Counter
+    r.drawText(10, 6, 0.55f, Renderer::Color(255, 255, 255), "POKEDEX DIRECTORY", false);
+    
+    // Sort Mode pill badge
+    const char* sortText = (app.getSortMode() == SortMode::NUMERICAL) ? "SORT: # ID" : "SORT: A-Z";
+    r.drawRect(185, 5, 60, 20, Renderer::Color(45, 45, 65, 255), false);
+    r.drawRectOutline(185, 5, 60, 20, 1.0f, Renderer::Color(80, 80, 110, 255), false);
+    r.drawText(189, 9, 0.3f, Renderer::Color(200, 200, 220), sortText, false);
+    
+    // Scanned Counter pill badge
     char scannedCount[32];
-    snprintf(scannedCount, sizeof(scannedCount), "Scanned: %d", app.getPokemonCount());
-    r.drawText(220, 22, 0.45f, Renderer::Color(0, 255, 0), scannedCount, false);
+    snprintf(scannedCount, sizeof(scannedCount), "SCANNED: %d", app.getPokemonCount());
+    r.drawRect(250, 5, 62, 20, Renderer::Color(30, 80, 40, 200), false);
+    r.drawRectOutline(250, 5, 62, 20, 1.0f, Renderer::Color(60, 160, 80, 255), false);
+    r.drawText(254, 9, 0.3f, Renderer::Color(255, 255, 255), scannedCount, false);
     
-    for (int i = 0; i < list_size; i++) {
-        float y = 30 + i * 20;
-        u32 color = (i == selected_index) ? Renderer::Color(255, 255, 0) : Renderer::Color(255, 255, 255);
-        char entry[64];
-        snprintf(entry, sizeof(entry), "%s #%03d %s", (i == selected_index ? ">" : " "), pokemon_list[i].id, pokemon_list[i].name);
-        r.drawText(10, y, 0.5f, color, entry, false);
+    // Capped visible items (7 items)
+    int max_visible = 7;
+    int scroll_offset = 0;
+    if (list_size > max_visible) {
+        scroll_offset = selected_index - 3;
+        if (scroll_offset < 0) scroll_offset = 0;
+        if (scroll_offset > list_size - max_visible) {
+            scroll_offset = list_size - max_visible;
+        }
+    }
+    
+    int end_index = std::min(list_size, scroll_offset + max_visible);
+    
+    for (int i = scroll_offset; i < end_index; i++) {
+        float itemY = 36 + (i - scroll_offset) * 25;
+        bool selected = (i == selected_index);
+        
+        u32 primTypeColor = getTypeColor(pokemon_list[i].types[0]);
+        
+        // Render capsule background
+        if (selected) {
+            // Highlighting capsule using a consistent sleek slate-blue focus color
+            r.drawRect(8, itemY, 286, 21, Renderer::Color(40, 50, 80, 255), false);
+            r.drawRectOutline(8, itemY, 286, 21, 1.0f, Renderer::Color(255, 255, 255, 200), false);
+            r.drawRect(8, itemY, 4, 21, Renderer::Color(255, 255, 255), false); // white focus bar
+        } else {
+            // Muted capsule
+            r.drawRect(8, itemY, 286, 21, Renderer::Color(25, 25, 38, 255), false);
+            r.drawRectOutline(8, itemY, 286, 21, 1.0f, Renderer::Color(45, 45, 60, 255), false);
+        }
+        
+        u32 textColor = selected ? Renderer::Color(255, 255, 255) : Renderer::Color(180, 185, 200);
+        u32 idColor = selected ? Renderer::Color(255, 255, 255) : Renderer::Color(120, 125, 145);
+        
+        char idStr[16];
+        snprintf(idStr, sizeof(idStr), "#%03d", pokemon_list[i].id);
+        r.drawText(18, itemY + 4, 0.45f, idColor, idStr, false);
+        r.drawText(56, itemY + 4, 0.48f, textColor, pokemon_list[i].name, false);
+    }
+    
+    // Draw vertical scrollbar if list size exceeds visible rows
+    if (list_size > max_visible) {
+        float scrollTrackY = 36;
+        float scrollTrackH = max_visible * 25 - 4;
+        r.drawRect(304, scrollTrackY, 4, scrollTrackH, Renderer::Color(35, 35, 50, 255), false);
+        
+        float thumbH = std::max(16.0f, ((float)max_visible / (float)list_size) * scrollTrackH);
+        float thumbY = scrollTrackY + ((float)scroll_offset / (float)(list_size - max_visible)) * (scrollTrackH - thumbH);
+        
+        r.drawRect(304, thumbY, 4, thumbH, Renderer::Color(160, 160, 180, 255), false);
     }
 }
 
@@ -284,4 +351,92 @@ void DisplayManager::drawPokemonSprite(float x, float y, float displaySize) {
     
     float scale = displaySize / (float)currentSpriteSize;
     C2D_DrawImageAt(spriteImage, x, y, 0.5f, nullptr, scale, scale);
+}
+
+void DisplayManager::drawTypeBadge(float x, float y, PokemonType type, bool is_small, bool top) {
+    auto& r = Renderer::getInstance();
+    u32 color = getTypeColor(type);
+    
+    float w = is_small ? 55.0f : 75.0f;
+    float h = is_small ? 14.0f : 18.0f;
+    float scale = is_small ? 0.35f : 0.4f;
+    
+    r.drawRect(x, y, w, h, color, top);
+    r.drawRectOutline(x, y, w, h, 1.0f, Renderer::Color(255, 255, 255, 180), top);
+    
+    const char* typeName = type_names[static_cast<int>(type)];
+    float textWidth = r.getTextWidth(typeName, scale);
+    float textX = x + (w - textWidth) / 2.0f;
+    float textY = y + (h - (30.0f * scale)) / 2.0f;
+    
+    r.drawText(textX, textY, scale, Renderer::Color(255, 255, 255), typeName, top);
+}
+
+void DisplayManager::drawPokedexCardTop(const Pokemon &pokemon, bool showSprite) {
+    auto& r = Renderer::getInstance();
+    
+    u32 typeColor = Renderer::Color(100, 100, 100);
+    if (pokemon.type_count > 0) {
+        typeColor = getTypeColor(pokemon.types[0]);
+    }
+    
+    r.drawRectOutline(10, 10, 380, 220, 2.0f, typeColor, true);
+    r.drawRect(12, 12, 376, 216, Renderer::Color(25, 25, 38, 255), true);
+    
+    char idStr[32];
+    snprintf(idStr, sizeof(idStr), "#%03d", pokemon.id);
+    r.drawText(20, 20, 0.45f, Renderer::Color(160, 160, 180), idStr, true);
+    
+    r.drawText(20, 35, 0.75f, Renderer::Color(255, 255, 255), pokemon.name, true);
+    r.drawRect(20, 65, 200, 2, Renderer::Color(60, 60, 80), true);
+    r.drawText(20, 72, 0.45f, Renderer::Color(180, 186, 200), pokemon.species, true);
+    
+    float badgeX = 20;
+    for (int i = 0; i < pokemon.type_count; i++) {
+        drawTypeBadge(badgeX, 95, pokemon.types[i], false, true);
+        badgeX += 85;
+    }
+    
+    if (showSprite) {
+        r.drawRectOutline(250, 45, 120, 120, 2.0f, typeColor, true);
+        r.drawRect(252, 47, 116, 116, (typeColor & 0xFFFFFF00) | 0x30, true);
+        
+        if (spriteTexInitialized) {
+            drawPokemonSprite(250, 45, 120);
+        }
+        
+        r.drawRect(260, 175, 100, 16, Renderer::Color(20, 120, 40, 200), true);
+        r.drawRectOutline(260, 175, 100, 16, 1.0f, Renderer::Color(50, 200, 80), true);
+        r.drawText(273, 177, 0.35f, Renderer::Color(255, 255, 255), "DATA ACQUIRED", true);
+    } else {
+        float totalInches = pokemon.height * 3.93701f;
+        int roundedInches = static_cast<int>(totalInches + 0.5f);
+        int feet = roundedInches / 12;
+        int inches = roundedInches % 12;
+        float lbs = pokemon.weight * 0.220462f;
+        
+        char hVal[16];
+        snprintf(hVal, sizeof(hVal), "%d' %02d\"", feet, inches);
+        char wVal[16];
+        snprintf(wVal, sizeof(wVal), "%.1f lbs", lbs);
+        
+        r.drawRectOutline(20, 130, 95, 60, 1.0f, Renderer::Color(60, 60, 80), true);
+        r.drawRect(21, 131, 93, 58, Renderer::Color(20, 20, 30, 180), true);
+        r.drawText(26, 136, 0.32f, Renderer::Color(140, 140, 160), "HEIGHT", true);
+        r.drawText(26, 156, 0.48f, Renderer::Color(255, 255, 255), hVal, true);
+        
+        r.drawRectOutline(125, 130, 95, 60, 1.0f, Renderer::Color(60, 60, 80), true);
+        r.drawRect(126, 131, 93, 58, Renderer::Color(20, 20, 30, 180), true);
+        r.drawText(131, 136, 0.32f, Renderer::Color(140, 140, 160), "WEIGHT", true);
+        r.drawText(131, 156, 0.48f, Renderer::Color(255, 255, 255), wVal, true);
+        
+        r.drawRectOutline(250, 45, 120, 120, 1.0f, Renderer::Color(50, 50, 65), true);
+        r.drawRect(251, 46, 118, 118, Renderer::Color(18, 18, 26), true);
+        
+        r.drawRect(255, 103, 110, 4, Renderer::Color(45, 45, 60), true);
+        r.drawRect(298, 93, 24, 24, Renderer::Color(18, 18, 28), true);
+        r.drawRectOutline(298, 93, 24, 24, 2.0f, Renderer::Color(45, 45, 60), true);
+        
+        r.drawText(263, 175, 0.38f, Renderer::Color(120, 120, 140), "SELECT FOR ENTRY", true);
+    }
 }

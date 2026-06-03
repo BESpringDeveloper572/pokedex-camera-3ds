@@ -67,6 +67,10 @@ public:
     void drawPokemonSprite(float x, float y, float size);
     void updatePokemonSprite(const std::vector<uint8_t>& tiledBytes, int size);
 
+    // Modern UI Overhaul helper functions
+    void drawPokedexCardTop(const Pokemon &pokemon, bool showSprite);
+    void drawTypeBadge(float x, float y, PokemonType type, bool is_small = false, bool top = true);
+
 private:
     void initCameraTexture();
     void initSpriteTexture(int size);

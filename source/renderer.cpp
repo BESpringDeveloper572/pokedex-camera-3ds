@@ -42,8 +42,8 @@ void Renderer::exit() {
 
 void Renderer::beginFrame() {
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topTarget, C2D_Color32(30, 30, 30, 255));
-    C2D_TargetClear(bottomTarget, C2D_Color32(30, 30, 30, 255));
+    C2D_TargetClear(topTarget, C2D_Color32(18, 18, 28, 255));
+    C2D_TargetClear(bottomTarget, C2D_Color32(18, 18, 28, 255));
     C2D_TextBufClear(dynamicTextBuf);
 }
 
@@ -121,4 +121,10 @@ void Renderer::drawTextWrapped(float x, float y, float scale, float wrapWidth, u
         C2D_TextOptimize(&finalLineText);
         C2D_DrawText(&finalLineText, C2D_WithColor, x, currentY, 0.5f, scale, scale, color);
     }
+}
+
+float Renderer::getTextWidth(const char* text, float scale) {
+    C2D_Text gtext;
+    C2D_TextParse(&gtext, dynamicTextBuf, text);
+    return gtext.width * scale;
 }

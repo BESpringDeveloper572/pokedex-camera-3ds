@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
         switch (app_state.getCurrentState()) {
             case LIST_VIEW:
                 if (app_state.getPokemonCount() > 0) {
-                    display.drawPokemonDetails(*app_state.getSelectedPokemon());
+                    display.drawPokedexCardTop(*app_state.getSelectedPokemon(), false);
                     display.drawPokemonListBottom(app_state.getPokemonList().data(), app_state.getPokemonCount(), app_state.getSelectedIndex());
                 } else {
                     display.drawEmptyListUI();
@@ -170,8 +170,8 @@ int main(int argc, char *argv[]) {
                     display.updatePokemonSprite(spriteData, 128);
                     should_speak = true;
                 }
+                display.drawPokedexCardTop(detail, true);
                 display.drawPokemonDetails(detail);
-                display.drawPokemonSprite(250, 40, 120); // Draw at (250, 40) with 120px display size
                 break;
 
             case SEARCH_MODE:

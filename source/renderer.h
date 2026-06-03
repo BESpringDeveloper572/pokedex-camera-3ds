@@ -29,6 +29,7 @@ public:
     void drawRectOutline(float x, float y, float w, float h, float thickness, u32 color, bool top = true);
     void drawText(float x, float y, float scale, u32 color, const char* text, bool top = true);
     void drawTextWrapped(float x, float y, float scale, float wrapWidth, u32 color, const char* text, bool top = true);
+    float getTextWidth(const char* text, float scale);
 
     // Color helper
     static u32 Color(u8 r, u8 g, u8 b, u8 a = 255) { return C2D_Color32(r, g, b, a); }
