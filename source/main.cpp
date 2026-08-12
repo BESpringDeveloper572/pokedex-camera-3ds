@@ -109,32 +109,13 @@ int main(int argc, char *argv[]) {
             if (input.isKeyDown(KEY_R)) {
                 app_state.setState(CLASSIFYING);
 
-                // Show initial progress
+                // Show classifying UI with spinning Pokeball
                 display.beginFrame();
                 display.drawClassifyingUI();
-                display.drawProgressBar(60, 140, 200, 20, 0.1f);
+                display.drawProgressBar(0, 0, 0, 0, 0.5f);
                 display.swapBuffers();
 
-                // Simulated early progress while preparing
-                for (float p = 0.15f; p < 0.35f; p += 0.05f) {
-                    display.beginFrame();
-                    display.drawClassifyingUI();
-                    display.drawProgressBar(60, 140, 200, 20, p);
-                    display.swapBuffers();
-                    svcSleepThread(50000000ULL);
-                }
-
-
                 if (auto pokemon = pokemonApi.classifyImage((uint8_t*)cameraFrame, CAM_BUF_SIZE); pokemon) {
-                    // Simulated completion progress
-                    for (float p = 0.4f; p <= 1.0f; p += 0.1f) {
-                        display.beginFrame();
-                        display.drawClassifyingUI();
-                        display.drawProgressBar(60, 140, 200, 20, p);
-                        display.swapBuffers();
-                        svcSleepThread(30000000ULL);
-                    }
-
                     detail = *pokemon;
                     app_state.addPokemon(*pokemon);
                     app_state.setState(DETAIL_VIEW);
@@ -195,6 +176,7 @@ int main(int argc, char *argv[]) {
 
             case CLASSIFYING:
                 display.drawClassifyingUI();
+                display.drawProgressBar(0, 0, 0, 0, 0.5f);
                 break;
 
             case ERROR:

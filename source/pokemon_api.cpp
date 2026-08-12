@@ -35,6 +35,26 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
     return totalSize;
 }
 
+static int ProgressCallback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow) {
+    (void)clientp; (void)dltotal; (void)dlnow; (void)ultotal; (void)ulnow;
+    auto& display = DisplayManager::getInstance();
+    display.beginFrame();
+    display.drawClassifyingUI();
+    display.drawProgressBar(0, 0, 0, 0, 0.5f);
+    display.swapBuffers();
+    return 0;
+}
+
+static int LegacyProgressCallback(void* clientp, double dltotal, double dlnow, double ultotal, double ulnow) {
+    (void)clientp; (void)dltotal; (void)dlnow; (void)ultotal; (void)ulnow;
+    auto& display = DisplayManager::getInstance();
+    display.beginFrame();
+    display.drawClassifyingUI();
+    display.drawProgressBar(0, 0, 0, 0, 0.5f);
+    display.swapBuffers();
+    return 0;
+}
+
 static u32* soc_buffer = nullptr;
 constexpr size_t SOC_ALIGN = 0x1000;
 constexpr size_t SOC_BUFFERSIZE = 0x100000;
@@ -132,6 +152,12 @@ std::unique_ptr<Pokemon> PokemonApi::classifyImage(const uint8_t* imageData, uin
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &userData);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 20L);
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, ProgressCallback);
+    curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, LegacyProgressCallback);
 
     CURLcode res = curl_easy_perform(curl);
     long response_code = 0;

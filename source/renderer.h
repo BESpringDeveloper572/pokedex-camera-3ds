@@ -27,6 +27,9 @@ public:
     // Drawing primitives
     void drawRect(float x, float y, float w, float h, u32 color, bool top = true);
     void drawRectOutline(float x, float y, float w, float h, float thickness, u32 color, bool top = true);
+    void drawCircle(float x, float y, float radius, u32 color, bool top = true);
+    void drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3, u32 color, bool top = true);
+    void drawLine(float x1, float y1, float x2, float y2, float thickness, u32 color, bool top = true);
     void drawText(float x, float y, float scale, u32 color, const char* text, bool top = true);
     void drawTextWrapped(float x, float y, float scale, float wrapWidth, u32 color, const char* text, bool top = true);
     float getTextWidth(const char* text, float scale);

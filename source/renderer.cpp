@@ -68,6 +68,21 @@ void Renderer::drawRectOutline(float x, float y, float w, float h, float thickne
     C2D_DrawLine(x + w, y, color, x + w, y + h, color, thickness, 0.5f);
 }
 
+void Renderer::drawCircle(float x, float y, float radius, u32 color, bool top) {
+    C2D_SceneBegin(top ? topTarget : bottomTarget);
+    C2D_DrawCircleSolid(x, y, 0.5f, radius, color);
+}
+
+void Renderer::drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3, u32 color, bool top) {
+    C2D_SceneBegin(top ? topTarget : bottomTarget);
+    C2D_DrawTriangle(x1, y1, color, x2, y2, color, x3, y3, color, 0.5f);
+}
+
+void Renderer::drawLine(float x1, float y1, float x2, float y2, float thickness, u32 color, bool top) {
+    C2D_SceneBegin(top ? topTarget : bottomTarget);
+    C2D_DrawLine(x1, y1, color, x2, y2, color, thickness, 0.5f);
+}
+
 void Renderer::drawText(float x, float y, float scale, u32 color, const char* text, bool top) {
     C2D_SceneBegin(top ? topTarget : bottomTarget);
     

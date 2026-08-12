@@ -59,6 +59,7 @@ public:
     void drawClassifyingUI();
     void drawEmptyListUI();
     void drawProgressBar(float x, float y, float width, float height, float progress);
+    void drawSpinningPokeball(float cx, float cy, float radius, float progress, bool top = false);
     void drawErrorUI();
     void drawButtonPrompts(AppState state);
     void drawCameraPreview();

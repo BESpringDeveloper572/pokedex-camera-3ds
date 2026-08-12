@@ -1,6 +1,8 @@
 #include "display_manager.h"
 #include "renderer.h"
 #include <cstdio>
+#include <cmath>
+#include <algorithm>
 #include <utility>
 
 DisplayManager::DisplayManager() : cameraTexInitialized(false), spriteTexInitialized(false), currentSpriteSize(0) {
@@ -242,10 +244,74 @@ void DisplayManager::drawViewfinderUI() {
     r.drawText(110, 180, 0.55f, Renderer::Color(255, 255, 80), "(B) Cancel", false);
 }
 
+void DisplayManager::drawSpinningPokeball(float cx, float cy, float radius, float progress, bool top) {
+    auto& r = Renderer::getInstance();
+
+    (void)progress; // Pure continuous spin regardless of progress parameter
+
+    // Smooth continuous rotation angle
+    static float angleOffset = 0.0f;
+    angleOffset += 0.10f;
+    if (angleOffset >= 6.28318530718f) {
+        angleOffset -= 6.28318530718f;
+    }
+    float rotation = angleOffset;
+
+    // 1. Outer Dark Shadow/Border
+    r.drawCircle(cx, cy, radius + 3.0f, Renderer::Color(15, 15, 25, 255), top);
+
+    // 2. Top Half (Red Hemisphere) & Bottom Half (White Hemisphere)
+    const int numSegments = 32;
+    for (int i = 0; i < numSegments; i++) {
+        float a1 = rotation + (float)i / (float)numSegments * 6.28318530718f;
+        float a2 = rotation + (float)(i + 1) / (float)numSegments * 6.28318530718f;
+
+        float x1 = cx + radius * cosf(a1);
+        float y1 = cy + radius * sinf(a1);
+        float x2 = cx + radius * cosf(a2);
+        float y2 = cy + radius * sinf(a2);
+
+        u32 color = (i < (numSegments / 2)) ? Renderer::Color(230, 45, 45, 255) : Renderer::Color(245, 245, 250, 255);
+        r.drawTriangle(cx, cy, x1, y1, x2, y2, color, top);
+    }
+
+    // 3. Middle Black Band
+    float bandLength = radius * 1.02f;
+    float bx1 = cx - bandLength * cosf(rotation);
+    float by1 = cy - bandLength * sinf(rotation);
+    float bx2 = cx + bandLength * cosf(rotation);
+    float by2 = cy + bandLength * sinf(rotation);
+    float bandThickness = std::max(2.5f, radius * 0.22f);
+    r.drawLine(bx1, by1, bx2, by2, bandThickness, Renderer::Color(25, 25, 35, 255), top);
+
+    // 4. Center Button Outer Ring
+    float buttonOuterR = radius * 0.35f;
+    r.drawCircle(cx, cy, buttonOuterR, Renderer::Color(25, 25, 35, 255), top);
+
+    // 5. Center Button Inner White Circle
+    float buttonInnerR = radius * 0.22f;
+    r.drawCircle(cx, cy, buttonInnerR, Renderer::Color(255, 255, 255, 255), top);
+
+    // 6. Center Button Innermost Pulsing Core
+    float pulse = 0.5f + 0.5f * sinf(angleOffset * 2.0f);
+    u8 pulseByte = static_cast<u8>(pulse * 25.0f);
+    u32 coreColor = Renderer::Color(220, 230 + pulseByte, 255, 255);
+    float buttonCoreR = radius * 0.12f;
+    r.drawCircle(cx, cy, buttonCoreR, coreColor, top);
+}
+
 void DisplayManager::drawClassifyingUI() {
     auto& r = Renderer::getInstance();
-    r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(30, 30, 30), false);
-    r.drawText(60, 100, 0.7f, Renderer::Color(255, 255, 0), "Classifying Pokemon...", false);
+    r.drawRect(0, 0, BOTTOM_WIDTH, BOTTOM_HEIGHT, Renderer::Color(18, 18, 28, 255), false);
+
+    // Header bar
+    r.drawRect(0, 0, BOTTOM_WIDTH, 30, Renderer::Color(25, 25, 38, 255), false);
+    r.drawRect(0, 30, BOTTOM_WIDTH, 2, Renderer::Color(50, 50, 70, 255), false);
+    r.drawText(10, 6, 0.55f, Renderer::Color(255, 255, 255), "POKEDEX AI VISION", false);
+
+    const char* statusText = "CLASSIFYING TARGET POKEMON...";
+    float tw = r.getTextWidth(statusText, 0.44f);
+    r.drawText((BOTTOM_WIDTH - tw) / 2.0f, 44.0f, 0.44f, Renderer::Color(200, 210, 230), statusText, false);
 }
 
 void DisplayManager::drawEmptyListUI() {
@@ -260,19 +326,16 @@ void DisplayManager::drawEmptyListUI() {
 }
 
 void DisplayManager::drawProgressBar(float x, float y, float width, float height, float progress) {
-    auto& r = Renderer::getInstance();
     if (progress < 0.0f) progress = 0.0f;
     if (progress > 1.0f) progress = 1.0f;
 
-    // Background bar
-    r.drawRect(x, y, width, height, Renderer::Color(60, 60, 60), false);
-    // Filled bar
-    r.drawRect(x, y, width * progress, height, Renderer::Color(0, 255, 0), false);
-    // Border
-    r.drawRect(x - 2, y - 2, width + 4, 2, Renderer::Color(200, 200, 200), false); // Top
-    r.drawRect(x - 2, y + height, width + 4, 2, Renderer::Color(200, 200, 200), false); // Bottom
-    r.drawRect(x - 2, y - 2, 2, height + 4, Renderer::Color(200, 200, 200), false); // Left
-    r.drawRect(x + width, y - 2, 2, height + 4, Renderer::Color(200, 200, 200), false); // Right
+    // Center Pokeball in bottom screen display area
+    float cx = (x > 0 && width > 0) ? (x + width / 2.0f) : (BOTTOM_WIDTH / 2.0f);
+    float cy = (y > 0 && height > 0) ? (y + height / 2.0f) : (130.0f);
+    float radius = 34.0f;
+
+    // Draw ONLY the spinning Pokeball
+    drawSpinningPokeball(cx, cy, radius, progress, false);
 }
 
 void DisplayManager::drawErrorUI() {
