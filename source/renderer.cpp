@@ -42,8 +42,8 @@ void Renderer::exit() {
 
 void Renderer::beginFrame() {
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topTarget, C2D_Color32(18, 18, 28, 255));
-    C2D_TargetClear(bottomTarget, C2D_Color32(18, 18, 28, 255));
+    C2D_TargetClear(topTarget, C2D_Color32(245, 246, 250, 255));
+    C2D_TargetClear(bottomTarget, C2D_Color32(245, 246, 250, 255));
     C2D_TextBufClear(dynamicTextBuf);
 }
 

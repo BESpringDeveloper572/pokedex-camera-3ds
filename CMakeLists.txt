@@ -69,3 +69,10 @@ if(COMMAND ctr_create_3dsx)
             DESCRIPTION "Browse Pokemon with graphics"
     )
 endif()
+ctr_generate_smdh(3ds-app.smdh
+        DESCRIPTION "Scan and analyze Pokemon"
+)
+
+ctr_create_3dsx(3ds-app
+        SMDH 3ds-app.smdh
+)
